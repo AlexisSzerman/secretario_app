@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-slate-200;
+  }
+  
+  .btn-primary {
+    @apply px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center gap-2 font-medium;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors inline-flex items-center gap-2 font-medium;
+  }
+  
+  .custom-input {
+    @apply w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent;
+  }
+  
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium;
+  }
+  
+  .badge-green {
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-50 text-yellow-700 border border-yellow-200;
+  }
+  
+  .badge-red {
+    @apply bg-red-50 text-red-700 border border-red-200;
+  }
+  
+  .badge-gray {
+    @apply bg-slate-50 text-slate-700 border border-slate-200;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
