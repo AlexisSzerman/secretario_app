@@ -6,6 +6,7 @@ import { db } from '../lib/supabase'
 export default function VistaAnoServicio({ publicadores }) {
   const [analisis, setAnalisis] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMessage, setLoadingMessage] = useState('Cargando datos...')
   const [filtro, setFiltro] = useState('TODOS')
 
   useEffect(() => {
@@ -27,9 +28,13 @@ export default function VistaAnoServicio({ publicadores }) {
 
   const loadAnalisis = async () => {
     setLoading(true)
+    setLoadingMessage('Calculando año de servicio...')
+    
     try {
       const anoServicio = getAnoServicioActual()
       const mesesAnoServicio = getMesesAnoServicio(anoServicio)
+      
+      setLoadingMessage('Identificando meses cerrados...')
       
       // CORREGIDO: Calcular meses cerrados del año de servicio
       const hoy = new Date()
@@ -65,6 +70,23 @@ export default function VistaAnoServicio({ publicadores }) {
         p.tipo_servicio !== 'Inactivo'
       )
 
+      setLoadingMessage(`Cargando informes de ${mesesCerrados.length} meses...`)
+      
+      // OPTIMIZACIÓN: Cargar TODOS los informes de una vez (en paralelo)
+      const informesPromises = mesesCerrados.map(mesInfo => 
+        db.getInformesByMesAno(mesInfo.mes, mesInfo.ano)
+      )
+      const todosLosInformesPorMes = await Promise.all(informesPromises)
+      
+      setLoadingMessage(`Analizando ${precursores.length} precursores...`)
+      
+      // Crear mapa para búsqueda rápida: "mes-año" -> informes[]
+      const informesPorMesMap = new Map()
+      mesesCerrados.forEach((mesInfo, index) => {
+        const key = `${mesInfo.mes}-${mesInfo.ano}`
+        informesPorMesMap.set(key, todosLosInformesPorMes[index])
+      })
+
       const analisisPrecursores = []
 
       for (const pub of precursores) {
@@ -80,7 +102,9 @@ export default function VistaAnoServicio({ publicadores }) {
           
           mesesDebiaInformar++  // Cuenta este mes como "debía informar"
           
-          const informes = await db.getInformesByMesAno(mesInfo.mes, mesInfo.ano)
+          // Buscar en el mapa (O(1)) en lugar de query
+          const key = `${mesInfo.mes}-${mesInfo.ano}`
+          const informes = informesPorMesMap.get(key) || []
           const informe = informes.find(i => i.publicador_id === pub.id)
           
           if (informe) {
@@ -124,14 +148,17 @@ export default function VistaAnoServicio({ publicadores }) {
         const horasMesPara560 = mesesRestantes > 0 ? horasFaltanPara560 / mesesRestantes : 0
         const horasMesPara600 = mesesRestantes > 0 ? horasFaltanPara600 / mesesRestantes : 0
         
-        // ESCALAS CORREGIDAS (basadas en 560h):
+        // NUEVA LÓGICA DE ESTADOS:
         let estado = 'ok'
         if (horasMesPara560 >= 60) {
-          estado = 'critico'  // Necesita 60h/mes o más en restantes
+          estado = 'critico'  // Necesita ≥60h/mes (muy difícil)
         } else if (horasMesPara560 >= 55) {
-          estado = 'atencion'  // Necesita 55-60h/mes en restantes
+          estado = 'atencion'  // Necesita 55-60h/mes (difícil)
+        } else if (proyeccion12Meses >= 560) {
+          estado = 'en-meta'  // Proyección ≥560h (alcanzará meta)
+        } else {
+          estado = 'bajo-meta'  // Proyección <560 pero alcanzable (<55h/mes necesarias)
         }
-        // Si necesita <55h/mes → Normal (estado = 'ok')
 
         analisisPrecursores.push({
           ...pub,
@@ -148,7 +175,7 @@ export default function VistaAnoServicio({ publicadores }) {
       }
 
       analisisPrecursores.sort((a, b) => {
-        const estadoOrder = { 'critico': 0, 'atencion': 1, 'ok': 2 }
+        const estadoOrder = { 'critico': 0, 'atencion': 1, 'bajo-meta': 2, 'en-meta': 3, 'ok': 4 }
         if (estadoOrder[a.estado] !== estadoOrder[b.estado]) {
           return estadoOrder[a.estado] - estadoOrder[b.estado]
         }
@@ -166,8 +193,8 @@ export default function VistaAnoServicio({ publicadores }) {
   const anoServicio = getAnoServicioActual()
   
   const analisisFiltrado = analisis.filter(a => {
-    if (filtro === 'ALERTA') return a.estado !== 'ok'
-    if (filtro === 'OK') return a.estado === 'ok'
+    if (filtro === 'ALERTA') return a.estado === 'critico' || a.estado === 'atencion' || a.estado === 'bajo-meta'
+    if (filtro === 'OK') return a.estado === 'en-meta'
     return true
   })
 
@@ -175,7 +202,8 @@ export default function VistaAnoServicio({ publicadores }) {
     total: analisis.length,
     criticos: analisis.filter(a => a.estado === 'critico').length,
     atencion: analisis.filter(a => a.estado === 'atencion').length,
-    ok: analisis.filter(a => a.estado === 'ok').length,
+    bajoMeta: analisis.filter(a => a.estado === 'bajo-meta').length,
+    enMeta: analisis.filter(a => a.estado === 'en-meta').length,
     promedioGeneral: analisis.length > 0 
       ? (analisis.reduce((sum, a) => sum + a.horasTotales, 0) / analisis.reduce((sum, a) => sum + a.mesesInformados, 0)).toFixed(1)
       : 0
@@ -183,8 +211,14 @@ export default function VistaAnoServicio({ publicadores }) {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+      <div className="space-y-6 animate-fade-in">
+        <div className="card p-12 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+            <p className="text-slate-900 font-medium">{loadingMessage}</p>
+            <p className="text-xs text-slate-500">Optimizando cálculos...</p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -226,22 +260,30 @@ export default function VistaAnoServicio({ publicadores }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card p-4">
           <div className="text-sm text-slate-600 mb-1">Total</div>
           <div className="text-2xl font-semibold text-slate-900">{stats.total}</div>
         </div>
         <div className="card p-4 bg-red-50 border-red-200">
-          <div className="text-sm text-red-700 mb-1">Críticos (≥60h/mes)</div>
+          <div className="text-sm text-red-700 mb-1">Críticos</div>
           <div className="text-2xl font-semibold text-red-900">{stats.criticos}</div>
+          <div className="text-xs text-red-700 mt-1">≥60h/mes</div>
         </div>
         <div className="card p-4 bg-amber-50 border-amber-200">
-          <div className="text-sm text-amber-700 mb-1">Atención (55-60h/mes)</div>
+          <div className="text-sm text-amber-700 mb-1">Atención</div>
           <div className="text-2xl font-semibold text-amber-900">{stats.atencion}</div>
+          <div className="text-xs text-amber-700 mt-1">55-60h/mes</div>
+        </div>
+        <div className="card p-4 bg-orange-50 border-orange-200">
+          <div className="text-sm text-orange-700 mb-1">Bajo Meta</div>
+          <div className="text-2xl font-semibold text-orange-900">{stats.bajoMeta}</div>
+          <div className="text-xs text-orange-700 mt-1">&lt;560h</div>
         </div>
         <div className="card p-4 bg-emerald-50 border-emerald-200">
-          <div className="text-sm text-emerald-700 mb-1">Normal (&lt;55h/mes)</div>
-          <div className="text-2xl font-semibold text-emerald-900">{stats.ok}</div>
+          <div className="text-sm text-emerald-700 mb-1">En Meta</div>
+          <div className="text-2xl font-semibold text-emerald-900">{stats.enMeta}</div>
+          <div className="text-xs text-emerald-700 mt-1">≥560h</div>
         </div>
       </div>
 
@@ -265,108 +307,126 @@ export default function VistaAnoServicio({ publicadores }) {
       </div>
 
       {/* Lista */}
-      <div className="card divide-y divide-slate-100">
-        {analisisFiltrado.map(prec => (
-          <div key={prec.id} className="p-4 hover:bg-slate-50">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <div className="font-medium text-slate-900">
-                  {prec.apellido}, {prec.nombre}
-                </div>
-                <div className="text-sm text-slate-600">
-                  Grupo {prec.grupo} • {prec.mesesInformados}/{prec.totalMesesAno} meses informados
-                </div>
-              </div>
-              <div className="text-right">
-                <div className={`text-2xl font-semibold ${
-                  prec.estado === 'critico' ? 'text-red-600' :
-                  prec.estado === 'atencion' ? 'text-amber-600' :
-                  'text-emerald-600'
-                }`}>
-                  {prec.proyeccion12Meses}h
-                </div>
-                <div className="text-xs text-slate-500">proyección</div>
-              </div>
-            </div>
+      <div className="space-y-4">
+        {analisisFiltrado.map(prec => {
+          // Calcular horas faltantes
+          const faltanPara560 = Math.max(560 - prec.horasTotales, 0)
+          const faltanPara600 = Math.max(600 - prec.horasTotales, 0)
+          
+          // Determinar badge y nota
+          let badge = null
+          let notaMeta = null
+          
+          if (prec.estado === 'critico') {
+            badge = '🔴 Crítico'
+          } else if (prec.estado === 'atencion') {
+            badge = '⚠️ Atención'
+          } else if (prec.estado === 'en-meta') {
+            badge = '✅ En meta'
+          } else if (prec.estado === 'bajo-meta') {
+            const diferencia = 560 - prec.proyeccion12Meses
+            notaMeta = `${diferencia}h bajo meta mínima`
+          }
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-3">
-              <div>
-                <div className="text-slate-600 text-xs">Acumulado</div>
-                <div className="font-semibold text-slate-900">{prec.horasTotales}h</div>
-              </div>
-              <div>
-                <div className="text-slate-600 text-xs">Promedio Actual</div>
-                <div className="font-semibold text-slate-900">{prec.promedioMensual}h/mes</div>
-              </div>
-              <div>
-                <div className="text-slate-600 text-xs">Necesita (560h)</div>
-                <div className={`font-semibold ${
-                  prec.estado === 'critico' ? 'text-red-600' :
-                  prec.estado === 'atencion' ? 'text-amber-600' :
-                  'text-emerald-600'
-                }`}>
-                  {prec.horasMesPara560}h/mes
+          return (
+            <div 
+              key={prec.id} 
+              className={`card p-6 ${
+                prec.estado === 'critico' ? 'border-l-4 border-red-500' :
+                prec.estado === 'atencion' ? 'border-l-4 border-amber-500' :
+                prec.estado === 'bajo-meta' ? 'border-l-4 border-orange-500' :
+                prec.estado === 'en-meta' ? 'border-l-4 border-green-500' :
+                'border-l-4 border-emerald-500'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">
+                    {prec.apellido}, {prec.nombre}
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1">
+                    Grupo {prec.grupo} • {prec.mesesInformados}/{prec.totalMesesAno} meses informados
+                  </div>
                 </div>
+                {badge && (
+                  <span className={`badge ${
+                    prec.estado === 'critico' ? 'badge-red' :
+                    prec.estado === 'atencion' ? 'badge-yellow' :
+                    prec.estado === 'en-meta' ? 'badge-green' :
+                    ''
+                  }`}>
+                    {badge}
+                  </span>
+                )}
               </div>
-              <div>
-                <div className="text-slate-600 text-xs">Necesita (600h)</div>
-                <div className="font-semibold text-blue-600">
-                  {prec.horasMesPara600}h/mes
+
+              {/* Datos compactos */}
+              <div className="space-y-2 text-sm">
+                {/* Acumulado y Promedio */}
+                <div className="flex gap-8">
+                  <div>
+                    <span className="text-slate-600">Acumulado:</span>{' '}
+                    <span className="font-semibold text-slate-900">{prec.horasTotales}h</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-600">Promedio Actual:</span>{' '}
+                    <span className="font-semibold text-slate-900">{prec.promedioMensual}h/mes</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-slate-600 text-xs">Proyección</div>
-                <div className="font-semibold text-slate-900">{prec.proyeccion12Meses}h</div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              {prec.estado === 'critico' && (
-                <span className="badge badge-red text-xs">🔴 Crítico</span>
-              )}
-              {prec.estado === 'atencion' && (
-                <span className="badge badge-yellow text-xs">⚠️ Atención</span>
-              )}
-              {prec.estado === 'ok' && (
-                <span className="badge badge-green text-xs">✅ Normal</span>
-              )}
-            </div>
+                {/* Meta 560h */}
+                <div>
+                  <span className="text-slate-600">Faltan para 560h:</span>{' '}
+                  <span className="font-semibold text-slate-900">{faltanPara560}h</span>
+                  {' • '}
+                  <span className="text-slate-600">Necesita:</span>{' '}
+                  <span className={`font-semibold ${
+                    prec.estado === 'critico' ? 'text-red-600' :
+                    prec.estado === 'atencion' ? 'text-amber-600' :
+                    prec.estado === 'bajo-meta' ? 'text-orange-600' :
+                    'text-emerald-600'
+                  }`}>
+                    {prec.horasMesPara560}h/mes
+                  </span>
+                </div>
 
-            {prec.estado !== 'ok' && (
-              <div className="mt-3 p-3 bg-slate-50 rounded-lg text-sm">
-                <div className="space-y-2">
-                  {prec.estado === 'critico' ? (
-                    <div className="text-red-700">
-                      <strong>🔴 Crítico:</strong> Necesita <strong>{prec.horasMesPara560}h/mes</strong> en los próximos {prec.mesesRestantes} meses para llegar a <strong>560h</strong>.
-                    </div>
-                  ) : (
-                    <div className="text-amber-700">
-                      <strong>⚠️ Atención:</strong> Necesita <strong>{prec.horasMesPara560}h/mes</strong> en los próximos {prec.mesesRestantes} meses para llegar a <strong>560h</strong>.
-                    </div>
+                {/* Meta 600h */}
+                <div>
+                  <span className="text-slate-600">Faltan para 600h:</span>{' '}
+                  <span className="font-semibold text-slate-900">{faltanPara600}h</span>
+                  {' • '}
+                  <span className="text-slate-600">Necesita:</span>{' '}
+                  <span className="font-semibold text-blue-600">
+                    {prec.horasMesPara600}h/mes
+                  </span>
+                </div>
+
+                {/* Proyección */}
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">Proyección actual:</span>{' '}
+                  <span className={`font-semibold text-lg ${
+                    prec.estado === 'critico' ? 'text-red-600' :
+                    prec.estado === 'atencion' ? 'text-amber-600' :
+                    prec.estado === 'bajo-meta' ? 'text-orange-600' :
+                    prec.estado === 'en-meta' ? 'text-green-600' :
+                    'text-emerald-600'
+                  }`}>
+                    {prec.proyeccion12Meses}h
+                  </span>
+                  {notaMeta && (
+                    <span className="text-xs text-orange-600 font-medium">
+                      ({notaMeta})
+                    </span>
                   )}
-                  <div className="text-slate-600 text-xs pt-1 border-t border-slate-200">
-                    • Acumulado: {prec.horasTotales}h • Faltan para 560h: {Math.max(560 - prec.horasTotales, 0)}h<br/>
-                    • Para 600h necesita: <strong>{prec.horasMesPara600}h/mes</strong> • Faltan: {Math.max(600 - prec.horasTotales, 0)}h
-                  </div>
                 </div>
               </div>
-            )}
-            
-            {prec.estado === 'ok' && prec.proyeccion12Meses < 600 && (
-              <div className="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
-                <div className="text-blue-700">
-                  <strong>ℹ️ Meta ideal (600h):</strong> Necesita <strong>{prec.horasMesPara600}h/mes</strong> en los próximos {prec.mesesRestantes} meses.
-                  <div className="text-xs mt-1">
-                    Camino a 560h ✓ • Faltan {Math.max(600 - prec.horasTotales, 0)}h para 600h
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
 
         {analisisFiltrado.length === 0 && (
-          <div className="p-12 text-center">
+          <div className="card p-12 text-center">
             <p className="text-slate-600">No hay precursores en esta categoría</p>
           </div>
         )}

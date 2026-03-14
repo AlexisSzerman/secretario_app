@@ -277,7 +277,12 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
       doc.setFontSize(10)
     }
 
-    if (noParticiparon.length > 0 && y < 250) {
+    if (noParticiparon.length > 0) {
+      // Si no hay espacio suficiente, agregar nueva página
+      if (y > 250) {
+        doc.addPage()
+        y = 20
+      }
       doc.setFont(undefined, 'bold')
       doc.text('NO PARTICIPARON:', 15, y)
       y += 6

@@ -2,10 +2,10 @@
 // Copiar a: src/components/VistaPrecursores.jsx
 
 import { useState } from 'react'
-import { Star, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowUpDown } from 'lucide-react'
 
 export default function VistaPrecursores({ publicadores, informes, mesActual }) {
-  const [mostrarSoloProblemas, setMostrarSoloProblemas] = useState(false)
+  const [ordenarPorHoras, setOrdenarPorHoras] = useState(true)
 
   const precursores = publicadores.filter(p => 
     (p.tipo_servicio === 'Precursor Regular' || p.tipo_servicio === 'Precursor Especial') &&
@@ -15,142 +15,133 @@ export default function VistaPrecursores({ publicadores, informes, mesActual }) 
   const analisis = precursores.map(p => {
     const informe = informes.find(i => i.publicador_id === p.id)
     const horas = informe?.horas || 0
-    
-    let estado = 'ok'
-    if (!informe) estado = 'sin-informe'
-    else if (horas < 45) estado = 'critico'
-    else if (horas < 50) estado = 'atencion'
-    
-    return { ...p, informe, horas, estado }
+    return { ...p, horas }
   })
 
-  // Ordenar por prioridad
-  const ordenPrioridad = {
-    'sin-informe': 0,
-    'critico': 1,
-    'atencion': 2,
-    'ok': 3
-  }
-  
-  analisis.sort((a, b) => {
-    if (ordenPrioridad[a.estado] !== ordenPrioridad[b.estado]) {
-      return ordenPrioridad[a.estado] - ordenPrioridad[b.estado]
+  // Ordenar
+  const analisisOrdenado = [...analisis].sort((a, b) => {
+    if (ordenarPorHoras) {
+      return b.horas - a.horas // Descendente por horas
     }
-    return a.horas - b.horas
+    return `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`)
   })
 
-  const precursoresFiltrados = mostrarSoloProblemas
-    ? analisis.filter(p => p.estado !== 'ok')
-    : analisis
+  // Top 3
+  const top3 = [...analisis]
+    .sort((a, b) => b.horas - a.horas)
+    .slice(0, 3)
 
+  // Stats
   const stats = {
     total: precursores.length,
     promedio: analisis.reduce((sum, p) => sum + p.horas, 0) / Math.max(analisis.length, 1),
-    sinInforme: analisis.filter(p => p.estado === 'sin-informe').length,
-    critico: analisis.filter(p => p.estado === 'critico').length,
-    atencion: analisis.filter(p => p.estado === 'atencion').length,
-    ok: analisis.filter(p => p.estado === 'ok').length
+    totalHoras: analisis.reduce((sum, p) => sum + p.horas, 0)
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="card p-4">
-          <div className="text-sm text-slate-600 mb-1">Total</div>
-          <div className="text-2xl font-semibold text-slate-900">{stats.total}</div>
-          <div className="text-xs text-slate-500 mt-1">Promedio: {stats.promedio.toFixed(1)}h</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-6">
+          <div className="text-sm text-slate-600 mb-2">Total Precursores</div>
+          <div className="text-3xl font-semibold text-slate-900">{stats.total}</div>
         </div>
-        <div className="card p-4 bg-red-50">
-          <div className="text-sm text-red-700 mb-1">Sin Informe</div>
-          <div className="text-2xl font-semibold text-red-900">{stats.sinInforme}</div>
+        <div className="card p-6">
+          <div className="text-sm text-slate-600 mb-2">Promedio Mensual</div>
+          <div className="text-3xl font-semibold text-blue-600">{stats.promedio.toFixed(1)}h</div>
         </div>
-        <div className="card p-4 bg-red-50">
-          <div className="text-sm text-red-700 mb-1">Crítico</div>
-          <div className="text-2xl font-semibold text-red-900">{stats.critico}</div>
-          <div className="text-xs text-red-700 mt-1">&lt; 45h</div>
-        </div>
-        <div className="card p-4 bg-amber-50">
-          <div className="text-sm text-amber-700 mb-1">Atención</div>
-          <div className="text-2xl font-semibold text-amber-900">{stats.atencion}</div>
-          <div className="text-xs text-amber-700 mt-1">&lt; 50h</div>
-        </div>
-        <div className="card p-4 bg-emerald-50">
-          <div className="text-sm text-emerald-700 mb-1">En Regla</div>
-          <div className="text-2xl font-semibold text-emerald-900">{stats.ok}</div>
-          <div className="text-xs text-emerald-700 mt-1">≥ 50h</div>
+        <div className="card p-6">
+          <div className="text-sm text-slate-600 mb-2">Total Horas</div>
+          <div className="text-3xl font-semibold text-slate-900">{stats.totalHoras}h</div>
         </div>
       </div>
 
-      {/* Filtro */}
-      <div className="card p-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={mostrarSoloProblemas}
-            onChange={(e) => setMostrarSoloProblemas(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <span className="text-sm text-slate-700">Mostrar solo los que necesitan atención</span>
-        </label>
-      </div>
-
-      {/* Lista de precursores */}
-      <div className="card divide-y divide-slate-100">
-        {precursoresFiltrados.map(prec => (
-          <div key={prec.id} className="p-4 hover:bg-slate-50 transition-colors">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="font-medium text-slate-900">
-                  {prec.apellido}, {prec.nombre}
-                </div>
-                <div className="text-sm text-slate-600 mt-1">
-                  Grupo {prec.grupo} • {prec.tipo_servicio}
+      {/* Top 3 */}
+      {top3.length > 0 && (
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Top 3 del Mes</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {top3.map((prec, index) => (
+              <div 
+                key={prec.id}
+                className={`p-4 rounded-lg border-2 ${
+                  index === 0 
+                    ? 'bg-amber-50 border-amber-200' 
+                    : index === 1 
+                    ? 'bg-slate-50 border-slate-200'
+                    : 'bg-orange-50 border-orange-200'
+                }`}
+              >
+                <div className="text-center">
+                  <div className={`text-sm font-medium mb-1 ${
+                    index === 0 
+                      ? 'text-amber-700' 
+                      : index === 1 
+                      ? 'text-slate-700'
+                      : 'text-orange-700'
+                  }`}>
+                    {index === 0 ? '1er Lugar' : index === 1 ? '2do Lugar' : '3er Lugar'}
+                  </div>
+                  <div className="font-semibold text-slate-900 mb-1">
+                    {prec.apellido}, {prec.nombre}
+                  </div>
+                  <div className="text-xs text-slate-600 mb-2">Grupo {prec.grupo}</div>
+                  <div className={`text-2xl font-bold ${
+                    index === 0 
+                      ? 'text-amber-600' 
+                      : index === 1 
+                      ? 'text-slate-600'
+                      : 'text-orange-600'
+                  }`}>
+                    {prec.horas}h
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className={`text-2xl font-semibold ${
-                  prec.estado === 'sin-informe' ? 'text-red-600' :
-                  prec.estado === 'critico' ? 'text-red-600' :
-                  prec.estado === 'atencion' ? 'text-amber-600' :
-                  'text-emerald-600'
-                }`}>
-                  {prec.horas}h
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lista completa */}
+      <div className="card">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-slate-900">Todos los Precursores</h3>
+          <button
+            onClick={() => setOrdenarPorHoras(!ordenarPorHoras)}
+            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <ArrowUpDown size={16} />
+            {ordenarPorHoras ? 'Ordenar alfabéticamente' : 'Ordenar por horas'}
+          </button>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {analisisOrdenado.map(prec => (
+            <div key={prec.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="font-medium text-slate-900">
+                    {prec.apellido}, {prec.nombre}
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1">
+                    Grupo {prec.grupo} • {prec.tipo_servicio}
+                  </div>
                 </div>
-                {prec.estado === 'sin-informe' && (
-                  <span className="badge badge-red text-xs mt-1">
-                    <AlertCircle size={12} />
-                    Sin informe
-                  </span>
-                )}
-                {prec.estado === 'critico' && (
-                  <span className="badge badge-red text-xs mt-1">
-                    <AlertCircle size={12} />
-                    Crítico
-                  </span>
-                )}
-                {prec.estado === 'atencion' && (
-                  <span className="badge badge-yellow text-xs mt-1">
-                    <AlertCircle size={12} />
-                    Atención
-                  </span>
-                )}
-                {prec.estado === 'ok' && (
-                  <span className="badge badge-green text-xs mt-1">
-                    <CheckCircle size={12} />
-                    En regla
-                  </span>
-                )}
+                <div className="text-right">
+                  <div className="text-xl font-semibold text-slate-900">
+                    {prec.horas}h
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {precursoresFiltrados.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-slate-600">No hay precursores en esta categoría</p>
-          </div>
-        )}
+          {analisisOrdenado.length === 0 && (
+            <div className="p-12 text-center">
+              <p className="text-slate-600">No hay precursores registrados este mes</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-// Dashboard.jsx - CON WIDGET DE RECORDATORIOS
+// Dashboard.jsx - OPTIMIZADO: Queries Paralelizadas + Loading Descriptivo
 // Copiar a: src/components/Dashboard.jsx (REEMPLAZAR)
 
 import { useState, useEffect } from 'react'
@@ -14,6 +14,8 @@ export default function Dashboard({ publicadores }) {
   const [irregulares, setIrregulares] = useState([])
   const [alertaDosAMeses, setAlertaDosAMeses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMessage, setLoadingMessage] = useState('Cargando datos...')
+  const [loadingProgress, setLoadingProgress] = useState(0)
   const [stats, setStats] = useState({
     total: 0,
     activos: 0,
@@ -35,20 +37,16 @@ export default function Dashboard({ publicadores }) {
 
   // FUNCIÓN HELPER: Verifica si debía informar en un mes específico
   const debiaInformarEnMes = (publicador, mes, ano) => {
-    // Si es inactivo, no debe informar
     if (publicador.tipo_servicio === 'Inactivo') {
       return false
     }
 
-    // Verificar con en_congregacion_desde (nuevo) o activo_desde (legacy)
     const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
     
-    // Si no tiene fecha, asumimos que sí debe informar
     if (!fechaBase) {
       return true
     }
 
-    // Verificar si el mes está después de la fecha base
     const fechaMes = new Date(ano, mes - 1, 1)
     const fechaInicio = new Date(fechaBase)
     
@@ -57,34 +55,58 @@ export default function Dashboard({ publicadores }) {
 
   const loadStats = async () => {
     setLoading(true)
+    setLoadingMessage('Inicializando...')
+    setLoadingProgress(0)
+    
     try {
+      // PASO 1: Calcular stats básicas (instantáneo)
+      setLoadingMessage('Calculando estadísticas básicas...')
+      setLoadingProgress(10)
+      
       const inactivos = publicadores.filter(p => p.tipo_servicio === 'Inactivo')
       const activos = publicadores.filter(p => p.tipo_servicio !== 'Inactivo')
       const precursoresRegulares = publicadores.filter(p => p.tipo_servicio === 'Precursor Regular')
       const bautizados = publicadores.filter(p => p.bautizado && p.fecha_bautismo)
 
-      // LÓGICA CORREGIDA: Meses cerrados
+      // PASO 2: Cargar TODOS los informes en paralelo (OPTIMIZACIÓN CLAVE)
+      setLoadingMessage(`Cargando informes de ${activos.length} publicadores...`)
+      setLoadingProgress(20)
+      
       const hoy = new Date()
       const mesActual = hoy.getMonth() + 1
       const anoActual = hoy.getFullYear()
       
-      // CRÍTICO: No evaluar el mes vencido actual (todavía se está entregando)
-      // Solo evaluar meses COMPLETAMENTE CERRADOS
-      // Si hoy es 10 de marzo, el mes vencido es febrero (se entrega hasta ~5 de marzo)
-      // Pero NO lo evaluamos para irregulares, solo evaluamos enero, diciembre, noviembre
+      // PARALELIZAR: Cargar todos los informes a la vez
+      const informesPromises = activos.map(pub => db.getInformesByPublicador(pub.id))
+      const todosLosInformes = await Promise.all(informesPromises)
       
+      setLoadingProgress(50)
+      setLoadingMessage('Analizando irregulares...')
+      
+      // PASO 3: Detectar irregulares (ahora con datos ya cargados)
       const irregularesDetectados = []
       const alertaDosAMesesDetectados = []
 
-      for (const pub of activos) {
-        const informes = await db.getInformesByPublicador(pub.id)
+      // Crear mapa de informes por publicador para búsqueda rápida
+      const informesPorPublicador = new Map()
+      todosLosInformes.forEach((informes, index) => {
+        informesPorPublicador.set(activos[index].id, informes)
+      })
+
+      // Analizar cada publicador
+      for (let i = 0; i < activos.length; i++) {
+        const pub = activos[i]
+        const informes = informesPorPublicador.get(pub.id) || []
         
-        // Obtener últimos 3 meses CERRADOS (no el mes vencido actual)
-        // Si estamos en marzo, evaluamos: Enero, Diciembre, Noviembre
-        // (Febrero todavía se está entregando, no cuenta)
+        // Actualizar progreso cada 10 publicadores
+        if (i % 10 === 0) {
+          setLoadingProgress(50 + Math.floor((i / activos.length) * 30))
+        }
+        
+        // Obtener últimos 3 meses CERRADOS
         const mesesCerrados = []
-        for (let i = 1; i <= 3; i++) { // CAMBIADO: Empezar en 1 (no en 0)
-          let mes = mesActual - i
+        for (let j = 1; j <= 3; j++) {
+          let mes = mesActual - j
           let ano = anoActual
           if (mes <= 0) {
             mes += 12
@@ -93,35 +115,22 @@ export default function Dashboard({ publicadores }) {
           mesesCerrados.push({ mes, ano })
         }
 
-        // DEBUG: Descomentar para ver qué meses está evaluando
-        // console.log('Evaluando:', pub.apellido, 'Meses cerrados:', mesesCerrados)
-
-        // Verificar participación SOLO en meses donde debía informar
+        // Verificar participación
         const participaciones = mesesCerrados.map(({ mes, ano }) => {
-          // Solo cuenta si debía informar en ese mes
           if (!debiaInformarEnMes(pub, mes, ano)) {
-            return null // No aplica este mes
+            return null
           }
-
           const informe = informes.find(inf => inf.mes === mes && inf.ano === ano)
           return informe?.participo || false
         })
 
-        // Filtrar solo los meses que sí debía informar
         const participacionesValidas = participaciones.filter(p => p !== null)
 
-        // DEBUG: Descomentar para ver participaciones
-        // console.log('  Participaciones válidas:', participacionesValidas)
-
-        // Solo evaluar si tiene al menos 3 meses donde debía informar
         if (participacionesValidas.length >= 3) {
-          // Irregular: 3 meses consecutivos sin participar
           if (participacionesValidas.slice(0, 3).every(p => p === false)) {
             irregularesDetectados.push({ ...pub, mesesSinParticipar: 3 })
-          }
-          // Alerta: 2 meses consecutivos sin participar (pero no 3)
-          else if (participacionesValidas.length >= 2 && 
-                   participacionesValidas.slice(0, 2).every(p => p === false)) {
+          } else if (participacionesValidas.length >= 2 && 
+                     participacionesValidas.slice(0, 2).every(p => p === false)) {
             alertaDosAMesesDetectados.push({ ...pub, mesesSinParticipar: 2 })
           }
         }
@@ -130,6 +139,10 @@ export default function Dashboard({ publicadores }) {
       setIrregulares(irregularesDetectados)
       setAlertaDosAMeses(alertaDosAMesesDetectados)
 
+      setLoadingProgress(80)
+      setLoadingMessage('Calculando aniversarios...')
+
+      // PASO 4: Stats finales y aniversarios
       setStats({
         total: publicadores.length,
         activos: activos.length,
@@ -140,7 +153,7 @@ export default function Dashboard({ publicadores }) {
         bautizados: bautizados.length
       })
 
-      // Aniversarios (sin cambios)
+      // Aniversarios
       const bautizadosActivos = bautizados.filter(p => p.tipo_servicio !== 'Inactivo')
       const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)
       const finSemana = new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -160,27 +173,39 @@ export default function Dashboard({ publicadores }) {
       setAniversariosPendientes(pendientes)
       setAniversariosMes(aniversarios.filter(p => p.proximo.fecha >= hoy && p.proximo.fecha <= finMes))
       setAniversariosSemana(aniversarios.filter(p => p.proximo.fecha >= hoy && p.proximo.fecha <= finSemana))
+      
+      setLoadingProgress(100)
+      setLoadingMessage('¡Listo!')
+      
+      // Pequeño delay para que se vea el mensaje "Listo"
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
     } catch (error) {
       console.error('Error cargando stats:', error)
+      setLoadingMessage('Error al cargar datos')
     } finally {
       setLoading(false)
     }
   }
 
-  // Loading skeleton
+  // Loading skeleton mejorado con progreso
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="card p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-slate-100 rounded-lg w-10 h-10 animate-pulse"></div>
-                <div className="h-4 bg-slate-200 rounded w-20 animate-pulse"></div>
+        <div className="card p-12 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+            <div className="space-y-2">
+              <p className="text-slate-900 font-medium">{loadingMessage}</p>
+              <div className="w-64 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
               </div>
-              <div className="h-8 bg-slate-200 rounded w-12 animate-pulse"></div>
+              <p className="text-xs text-slate-500">{loadingProgress}%</p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     )
