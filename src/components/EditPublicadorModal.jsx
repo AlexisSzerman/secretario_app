@@ -15,14 +15,19 @@ export default function EditPublicadorModal({ publicador, onClose, onSave }) {
     direccion: publicador?.direccion || '',
     bautizado: publicador?.bautizado || false,
     fecha_bautismo: publicador?.fecha_bautismo || '',
-    en_congregacion_desde: publicador?.en_congregacion_desde || '' 
-    // ELIMINADO: fecha_llegada (redundante con en_congregacion_desde)
+    en_congregacion_desde: publicador?.en_congregacion_desde || '',
+    // NUEVOS: Para S-21
+    fecha_nacimiento: publicador?.fecha_nacimiento || '',
+    sexo: publicador?.sexo || '',
+    esperanza: publicador?.esperanza || 'Otras ovejas'
   })
   
   const [tipoServicioAnterior, setTipoServicioAnterior] = useState(publicador?.tipo_servicio || 'Publicador')
   const [historialPrecAux, setHistorialPrecAux] = useState([])
   const [loading, setLoading] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showMudanzaModal, setShowMudanzaModal] = useState(false)
+  const [fechaMudanza, setFechaMudanza] = useState('')
 
   useEffect(() => {
     if (publicador) {
@@ -86,7 +91,10 @@ const handleSubmit = async (e) => {
       ...datos,
       fecha_bautismo: datos.fecha_bautismo || null,
       fecha_llegada: datos.fecha_llegada || null,
-      en_congregacion_desde: datos.en_congregacion_desde || null
+      en_congregacion_desde: datos.en_congregacion_desde || null,
+      fecha_nacimiento: datos.fecha_nacimiento || null,
+      sexo: datos.sexo || null,
+      esperanza: datos.esperanza || 'Otras ovejas'
     }
 
     if (publicador) {
@@ -111,6 +119,23 @@ const handleSubmit = async (e) => {
     } catch (error) {
       console.error('Error eliminando publicador:', error)
       alert('Error al eliminar. Es posible que tenga informes asociados.')
+    }
+  }
+
+  const handleMudanza = async () => {
+    if (!publicador || !fechaMudanza) {
+      alert('Debes seleccionar una fecha de mudanza')
+      return
+    }
+    
+    try {
+      await db.updatePublicador(publicador.id, {
+        fecha_mudanza: fechaMudanza
+      })
+      onSave()
+    } catch (error) {
+      console.error('Error marcando como mudado:', error)
+      alert('Error al marcar como mudado')
     }
   }
 
@@ -293,6 +318,60 @@ const handleSubmit = async (e) => {
             />
           </div>
 
+          {/* === DATOS PARA S-21 === */}
+          <div className="border-t border-slate-200 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              Datos para Registro S-21
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Fecha de nacimiento */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Fecha de Nacimiento
+                </label>
+                <input
+                  type="date"
+                  value={datos.fecha_nacimiento}
+                  onChange={(e) => setDatos({...datos, fecha_nacimiento: e.target.value})}
+                  className="custom-input"
+                />
+              </div>
+
+              {/* Sexo */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Sexo
+                </label>
+                <select
+                  value={datos.sexo}
+                  onChange={(e) => setDatos({...datos, sexo: e.target.value})}
+                  className="custom-input"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Hombre">Hombre</option>
+                  <option value="Mujer">Mujer</option>
+                </select>
+              </div>
+
+              {/* Esperanza */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Esperanza
+                </label>
+                <select
+                  value={datos.esperanza}
+                  onChange={(e) => setDatos({...datos, esperanza: e.target.value})}
+                  className="custom-input"
+                >
+                  <option value="Otras ovejas">Otras ovejas</option>
+                  <option value="Ungido">Ungido</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* Bautizado */}
           <div>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -348,39 +427,53 @@ const handleSubmit = async (e) => {
 
           {/* Botones */}
           <div className="flex gap-3 justify-between pt-4 border-t border-slate-200">
-            {publicador && !showDeleteConfirm && (
-              <button 
-                type="button" 
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200 transition-colors inline-flex items-center gap-2 font-medium"
-              >
-                <Trash2 size={16} />
-                Eliminar
-              </button>
-            )}
+            {/* Botones de acción izquierda */}
+            <div className="flex gap-2">
+              {publicador && !showDeleteConfirm && (
+                <>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowMudanzaModal(true)}
+                    className="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 border border-orange-200 transition-colors inline-flex items-center gap-2 font-medium"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Mudado
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200 transition-colors inline-flex items-center gap-2 font-medium"
+                  >
+                    <Trash2 size={16} />
+                    Eliminar
+                  </button>
+                </>
+              )}
 
-            {showDeleteConfirm && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-red-700">¿Confirmar eliminación?</span>
-                <button 
-                  type="button"
-                  onClick={handleDelete}
-                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                >
-                  Sí, eliminar
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-3 py-1 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300"
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
+              {showDeleteConfirm && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-red-700">¿Confirmar eliminación?</span>
+                  <button 
+                    type="button"
+                    onClick={handleDelete}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                  >
+                    Sí, eliminar
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-3 py-1 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
 
-            {!publicador && <div></div>}
+              {!publicador && <div></div>}
+            </div>
 
+            {/* Botones de acción derecha */}
             <div className="flex gap-3">
               <button type="button" onClick={onClose} className="btn-secondary">
                 Cancelar
@@ -392,6 +485,63 @@ const handleSubmit = async (e) => {
             </div>
           </div>
         </form>
+
+        {/* Modal de Mudanza */}
+        {showMudanzaModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110]">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Marcar como Mudado
+              </h3>
+              
+              <div className="mb-4">
+                <p className="text-slate-700 font-medium mb-2">
+                  {publicador.apellido}, {publicador.nombre}
+                </p>
+                
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Fecha de mudanza:
+                </label>
+                <input
+                  type="date"
+                  value={fechaMudanza}
+                  onChange={(e) => setFechaMudanza(e.target.value)}
+                  className="custom-input w-full"
+                  required
+                />
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-orange-800">
+                  ⚠️ <strong>El publicador ya no aparecerá en la lista de publicadores</strong> a partir de esta fecha.
+                </p>
+                <p className="text-sm text-orange-700 mt-2">
+                  ✓ Sus informes anteriores se mantendrán en el historial.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMudanzaModal(false)
+                    setFechaMudanza('')
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMudanza}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

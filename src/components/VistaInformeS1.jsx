@@ -53,12 +53,22 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     if (publicador.tipo_servicio === 'Inactivo') return false
     
     const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
-    if (!fechaBase) return true
-    
     const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
-    const fechaInicio = new Date(fechaBase)
     
-    return fechaMes >= fechaInicio
+    // Verificar fecha de inicio
+    if (fechaBase) {
+      const fechaInicio = new Date(fechaBase)
+      if (fechaMes < fechaInicio) return false
+    }
+    
+    // NUEVO: Verificar fecha de mudanza
+    if (publicador.fecha_mudanza) {
+      const fechaSalida = new Date(publicador.fecha_mudanza)
+      // Si el mes es posterior a la mudanza, no debía informar
+      if (fechaMes > fechaSalida) return false
+    }
+    
+    return true
   }
 
   // FUNCIÓN HELPER: Obtener informes del mes anterior
@@ -80,7 +90,10 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     }
   }
 
-  const publicadoresActivos = publicadores.filter(p => p.tipo_servicio !== 'Inactivo')
+  const publicadoresActivos = publicadores.filter(p => 
+    p.tipo_servicio !== 'Inactivo' &&
+    (!p.fecha_mudanza || new Date(p.fecha_mudanza) >= new Date(mesActual.ano, mesActual.mes - 1, 1))
+  )
   const publicadoresDeberian = publicadores.filter(p => debiaInformarEnMes(p))
 
   // Separar informes por tipo
@@ -138,6 +151,13 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   const nuevosPublicadores = publicadores.filter(pub => {
     if (!pub.en_congregacion_desde) return false
     const fecha = new Date(pub.en_congregacion_desde)
+    return fecha.getMonth() + 1 === mesActual.mes && fecha.getFullYear() === mesActual.ano
+  })
+
+  // NUEVO: Publicadores mudados (fecha_mudanza = mes actual)
+  const publicadoresMudados = publicadores.filter(pub => {
+    if (!pub.fecha_mudanza) return false
+    const fecha = new Date(pub.fecha_mudanza)
     return fecha.getMonth() + 1 === mesActual.mes && fecha.getFullYear() === mesActual.ano
   })
 
@@ -272,6 +292,30 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
           doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
           y += 5
         }
+      })
+      y += 5
+      doc.setFontSize(10)
+    }
+
+    // NUEVO: Publicadores mudados
+    if (publicadoresMudados.length > 0) {
+      // Si no hay espacio suficiente, agregar nueva página
+      if (y > 250) {
+        doc.addPage()
+        y = 20
+      }
+      doc.setFont(undefined, 'bold')
+      doc.text('MUDADOS:', 15, y)
+      y += 6
+      doc.setFont(undefined, 'normal')
+      doc.setFontSize(9)
+      publicadoresMudados.forEach(pub => {
+        if (y > 280) {
+          doc.addPage()
+          y = 20
+        }
+        doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
+        y += 5
       })
       y += 5
       doc.setFontSize(10)
@@ -634,6 +678,23 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {nuevosPublicadores.map(pub => (
+              <div key={pub.id} className="text-sm text-slate-700">
+                • {pub.apellido}, {pub.nombre}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* NUEVO: Publicadores Mudados */}
+      {publicadoresMudados.length > 0 && (
+        <div className="card p-6 bg-orange-50 border-orange-200">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-600"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            Mudados ({publicadoresMudados.length})
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {publicadoresMudados.map(pub => (
               <div key={pub.id} className="text-sm text-slate-700">
                 • {pub.apellido}, {pub.nombre}
               </div>

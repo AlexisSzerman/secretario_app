@@ -53,7 +53,19 @@ export default function Informes({ publicadores, onReload }) {
     })
   }
 
-  const publicadoresActivos = publicadores.filter(p => p.tipo_servicio !== 'Inactivo')
+  const publicadoresActivos = publicadores.filter(p => {
+    // Excluir inactivos
+    if (p.tipo_servicio === 'Inactivo') return false
+    
+    // Excluir mudados (si la fecha de mudanza es anterior al mes actual)
+    if (p.fecha_mudanza) {
+      const fechaSalida = new Date(p.fecha_mudanza)
+      const fechaMesActual = new Date(mesActual.ano, mesActual.mes - 1, 1)
+      if (fechaSalida < fechaMesActual) return false
+    }
+    
+    return true
+  })
   const esDisponible = esMesVencido(mesActual.mes, mesActual.ano)
   const esMesFuturo = !esDisponible
   const porcentaje = publicadoresActivos.length > 0
