@@ -58,280 +58,160 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
     }
   }
 
-  const crearPDF_S21 = (publicador, anoServicio, mesesAno, informesPorMes) => {
-    const doc = new jsPDF()
-    
-    // === TÍTULO ===
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('REGISTRO DE PUBLICADOR DE LA CONGREGACIÓN', 105, 20, { align: 'center' })
-    
-    // === NOMBRE ===
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'normal')
-    doc.text('Nombre:', 15, 35)
-    
-    // Línea para el nombre
-    doc.line(32, 35, 190, 35)
-    
-    // Nombre del publicador sobre la línea
-    if (publicador) {
-      doc.setFont(undefined, 'bold')
-      doc.text(`${publicador.apellido}, ${publicador.nombre}`, 33, 34.5)
-    }
-    
-    // === FECHA DE NACIMIENTO ===
-    doc.setFont(undefined, 'normal')
-    doc.text('Fecha de nacimiento:', 15, 45)
-    
-    // Línea para la fecha
-    doc.line(55, 45, 100, 45)
-    
-    // Fecha si existe
-    if (publicador.fecha_nacimiento) {
-      doc.setFont(undefined, 'bold')
-      const fecha = new Date(publicador.fecha_nacimiento)
-      doc.text(fecha.toLocaleDateString('es-AR'), 56, 44.5)
-    }
-    
-    // Checkboxes Hombre/Mujer
-    doc.setFont(undefined, 'normal')
-    
-    // Checkbox Hombre
-    doc.rect(110, 42.5, 4, 4)
-    if (publicador.sexo === 'Hombre') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 111.5, 45.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Hombre', 116, 45.5)
-    
-    // Checkbox Mujer  
-    doc.rect(140, 42.5, 4, 4)
-    if (publicador.sexo === 'Mujer') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 141.5, 45.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Mujer', 146, 45.5)
-    
-    // === FECHA DE BAUTISMO ===
-    doc.text('Fecha de bautismo:', 15, 55)
-    
-    // Línea para la fecha
-    doc.line(55, 55, 100, 55)
-    
-    // Fecha si existe
-    if (publicador.fecha_bautismo) {
-      doc.setFont(undefined, 'bold')
-      const fecha = new Date(publicador.fecha_bautismo)
-      doc.text(fecha.toLocaleDateString('es-AR'), 56, 54.5)
-    }
-    
-    // Checkboxes Otras ovejas/Ungido
-    doc.setFont(undefined, 'normal')
-    
-    // Checkbox Otras ovejas
-    doc.rect(110, 52.5, 4, 4)
-    if (!publicador.esperanza || publicador.esperanza === 'Otras ovejas') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 111.5, 55.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Otras ovejas', 116, 55.5)
-    
-    // Checkbox Ungido
-    doc.rect(150, 52.5, 4, 4)
-    if (publicador.esperanza === 'Ungido') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 151.5, 55.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Ungido', 156, 55.5)
-    
-    // === PRIVILEGIOS/SERVICIOS ===
-    doc.setFontSize(9)
-    let y = 67
-    
-    // Fila 1: Anciano, Siervo ministerial, Precursor regular, Precursor especial
-    // Anciano
-    doc.rect(15, y - 3, 3.5, 3.5)
-    if (publicador.responsabilidad === 'Anciano') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 16, y - 0.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Anciano', 20, y)
-    
-    // Siervo ministerial
-    doc.rect(45, y - 3, 3.5, 3.5)
-    if (publicador.responsabilidad === 'Siervo Ministerial') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 46, y - 0.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Siervo ministerial', 50, y)
-    
-    // Precursor regular
-    doc.rect(95, y - 3, 3.5, 3.5)
-    if (publicador.tipo_servicio === 'Precursor Regular') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 96, y - 0.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Precursor regular', 100, y)
-    
-    // Precursor especial
-    doc.rect(145, y - 3, 3.5, 3.5)
-    if (publicador.tipo_servicio === 'Precursor Especial') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 146, y - 0.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Precursor especial', 150, y)
-    
-    // Fila 2: Misionero
-    y += 8
-    doc.rect(15, y - 3, 3.5, 3.5)
-    if (publicador.tipo_servicio === 'Misionero') {
-      doc.setFont(undefined, 'bold')
-      doc.text('X', 16, y - 0.5)
-      doc.setFont(undefined, 'normal')
-    }
-    doc.text('Misionero que sirve en el campo', 20, y)
-    
-    // === AÑO DE SERVICIO ===
-    y += 12
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('Año de servicio', 15, y)
-    doc.setFont(undefined, 'normal')
-    
-    // === TABLA ===
-    y += 10
-    doc.setFontSize(8)
-    
-    // Encabezados de columnas
-    const colX = {
-      mes: 20,
-      participacion: 60,
-      cursos: 100,
-      auxiliar: 130,
-      horas: 160,
-      notas: 185
-    }
-    
-    // Headers - Línea 1
-    doc.setFont(undefined, 'bold')
-    doc.text('Participación', colX.participacion, y)
-    doc.text('Cursos', colX.cursos, y)
-    doc.text('Precursor', colX.auxiliar, y)
-    doc.text('Horas', colX.horas, y)
-    doc.text('Notas', colX.notas, y)
-    
-    // Headers - Línea 2
-    y += 4
-    doc.text('en el', colX.participacion, y)
-    doc.text('bíblicos', colX.cursos, y)
-    doc.text('auxiliar', colX.auxiliar, y)
-    
-    // Headers - Línea 3
-    y += 4
-    doc.text('ministerio', colX.participacion, y)
-    
-    // Línea separadora bajo headers
-    y += 2
-    doc.line(15, y, 195, y)
-    
-    y += 6
-    doc.setFont(undefined, 'normal')
-    
-    // === MESES ===
-    const esPrecursor = publicador.tipo_servicio === 'Precursor Regular' || 
-                        publicador.tipo_servicio === 'Precursor Especial' ||
-                        publicador.tipo_servicio === 'Misionero'
-    
-    const mesesOrden = ['Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 
-                        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto']
-    
-    let totalHoras = 0
-    let totalCursos = 0
-    
-    mesesOrden.forEach((mesNombre, idx) => {
-      const mesInfo = mesesAno.find(m => getMesNombre(m.mes) === mesNombre)
-      const informe = mesInfo ? informesPorMes[mesInfo.mes] : null
-      
-      // Líneas horizontales entre meses
-      if (idx > 0) {
-        doc.setDrawColor(220, 220, 220)
-        doc.line(15, y - 3, 195, y - 3)
-        doc.setDrawColor(0, 0, 0)
-      }
-      
-      // Nombre del mes
-      doc.text(mesNombre, colX.mes, y)
-      
-      // Participación (checkbox visual)
-      if (informe && informe.participo) {
-        doc.rect(colX.participacion + 8, y - 3, 3, 3)
-        doc.setFont(undefined, 'bold')
-        doc.text('✓', colX.participacion + 9, y - 0.5)
-        doc.setFont(undefined, 'normal')
-      } else {
-        doc.rect(colX.participacion + 8, y - 3, 3, 3)
-      }
-      
-      // Cursos
-      if (informe && informe.cursos > 0) {
-        doc.text(informe.cursos.toString(), colX.cursos + 8, y)
-        totalCursos += informe.cursos
-      }
-      
-      // Precursor auxiliar (checkbox visual)
-      if (informe && informe.precursor_auxiliar) {
-        doc.rect(colX.auxiliar + 8, y - 3, 3, 3)
-        doc.setFont(undefined, 'bold')
-        doc.text('✓', colX.auxiliar + 9, y - 0.5)
-        doc.setFont(undefined, 'normal')
-      } else {
-        doc.rect(colX.auxiliar + 8, y - 3, 3, 3)
-      }
-      
-      // Horas (solo si es precursor o fue auxiliar)
-      if (informe && (esPrecursor || informe.precursor_auxiliar)) {
-        doc.text(informe.horas.toString(), colX.horas + 8, y)
-        totalHoras += informe.horas
-      }
-      
-      y += 8
-    })
-    
-    // === TOTALES ===
-    y += 2
-    doc.line(15, y - 3, 195, y - 3)
-    y += 5
-    
-    doc.setFont(undefined, 'bold')
-    doc.text('Total', colX.mes, y)
-    
-    if (totalCursos > 0) {
-      doc.text(totalCursos.toString(), colX.cursos + 8, y)
-    }
-    
-    if (esPrecursor && totalHoras > 0) {
-      doc.text(totalHoras.toString(), colX.horas + 8, y)
-    }
-    
-    // === FOOTER ===
-    doc.setFontSize(7)
-    doc.setFont(undefined, 'normal')
-    doc.text('S-21-S 11/23', 15, 285)
-    
-    // === DESCARGAR ===
-    const nombreArchivo = `S-21_${publicador.apellido}_${publicador.nombre}_${anoServicio.nombre}.pdf`
-    doc.save(nombreArchivo)
+ const crearPDF_S21 = async (publicador, anoServicio, mesesAno, informesPorMes) => {
+  const doc = new jsPDF()
+
+  // ======================
+  // CARGAR TEMPLATE (FONDO)
+  // ======================
+  const img = new Image()
+  img.src = '/s21-template.png'
+
+  await new Promise((resolve) => {
+    img.onload = resolve
+  })
+
+
+  doc.addImage(img, 'PNG', 0, 0, 210, 297)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+
+  // ======================
+  // DATOS PERSONALES
+  // ======================
+
+  // Nombre
+  if (publicador) {
+    doc.text(`${publicador.apellido}, ${publicador.nombre}`, 42, 26.5)
   }
 
+  // Fecha nacimiento
+  if (publicador.fecha_nacimiento) {
+    const fecha = new Date(publicador.fecha_nacimiento)
+    doc.text(fecha.toLocaleDateString('es-AR'), 60, 33.5)
+  }
+
+  // Sexo
+  if (publicador.sexo === 'Hombre') {
+    doc.text('X', 107.5, 33.5)
+  }
+  if (publicador.sexo === 'Mujer') {
+    doc.text('X', 137.5, 33.5)
+  }
+
+  // Bautismo
+  if (publicador.fecha_bautismo) {
+    const fecha = new Date(publicador.fecha_bautismo)
+    doc.text(fecha.toLocaleDateString('es-AR'), 60, 40.5)
+  }
+
+  // Esperanza
+  if (!publicador.esperanza || publicador.esperanza === 'Otras ovejas') {
+    doc.text('X', 107.5, 40.5)
+  }
+  if (publicador.esperanza === 'Ungido') {
+    doc.text('X', 147.5, 40.5)
+  }
+
+  // ======================
+  // PRIVILEGIOS
+  // ======================
+
+  if (publicador.responsabilidad === 'Anciano') {
+    doc.text('X', 17.5, 50.5) 
+  }
+
+  if (publicador.responsabilidad === 'Siervo Ministerial') {
+    doc.text('X', 47.5, 50.5)
+  }
+
+  if (publicador.tipo_servicio === 'Precursor Regular') {
+    doc.text('X', 97.5, 50.5)
+  }
+
+  if (publicador.tipo_servicio === 'Precursor Especial') {
+    doc.text('X', 147.5, 50.5)
+  }
+
+  if (publicador.tipo_servicio === 'Misionero') {
+    doc.text('X', 17.5, 57.5)
+  }
+
+  // ======================
+  // TABLA
+  // ======================
+
+  const mesesOrden = [
+    'Septiembre','Octubre','Noviembre','Diciembre',
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
+  ]
+
+  const col = {
+  part: 71.5,
+  cursos: 100,
+  aux: 130,
+  horas: 155
+}
+
+let y = 96
+
+  const esPrecursor =
+    publicador.tipo_servicio === 'Precursor Regular' ||
+    publicador.tipo_servicio === 'Precursor Especial' ||
+    publicador.tipo_servicio === 'Misionero'
+
+  let totalHoras = 0
+  let totalCursos = 0
+
+ mesesOrden.forEach((mesNombre) => {
+  const mesInfo = mesesAno.find(m => getMesNombre(m.mes) === mesNombre)
+  const informe = mesInfo ? informesPorMes[mesInfo.mes] : null
+
+  // Participación
+  if (informe?.participo) {
+    doc.text('X', col.part, y)
+  }
+
+  // Cursos
+  if (informe?.cursos) {
+    doc.text(String(informe.cursos), col.cursos, y, { align: 'center' })
+  }
+
+  // Auxiliar
+  if (informe?.precursor_auxiliar) {
+    doc.text('X', col.aux, y)
+  }
+
+  // Horas
+  if (informe?.horas) {
+    doc.text(String(informe.horas), col.horas, y, { align: 'center' })
+  }
+
+  y += 7.2 // 🔥 este decimal es CLAVE para que cierre perfecto
+})
+
+  // ======================
+  // TOTALES
+  // ======================
+
+  doc.text('Total', 20, y + 4.5)
+
+  if (totalCursos > 0) {
+   doc.text(String(totalCursos), col.cursos, y + 4.5, { align: 'center' })
+  }
+
+  if (totalHoras > 0) {
+    doc.text(String(totalHoras), col.horas, y + 4.5, { align: 'center' })
+  }
+
+  // ======================
+  // DESCARGA
+  // ======================
+
+  const nombreArchivo = `S-21_${publicador.apellido}_${publicador.nombre}_${anoServicio.nombre}.pdf`
+  doc.save(nombreArchivo)
+}
   const publicadorInfo = publicadorSeleccionado ? 
     publicadores.find(p => p.id === publicadorSeleccionado) : null
   const faltanDatos = publicadorInfo && (!publicadorInfo.fecha_nacimiento || !publicadorInfo.sexo)
