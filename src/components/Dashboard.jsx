@@ -2,7 +2,7 @@
 // Copiar a: src/components/Dashboard.jsx (REEMPLAZAR)
 
 import { useState, useEffect } from 'react'
-import { Users, CheckCircle, UserX, AlertCircle, Star, Droplet, MessageCircle, Calendar, Cake } from 'lucide-react'
+import { Users, CheckCircle, UserX, AlertCircle, Star, Droplet, MessageCircle, Calendar } from 'lucide-react'
 import { db } from '../lib/supabase'
 import { calcularTiempoBautizado, calcularProximoAniversario, formatearFecha } from '../utils/dateUtils'
 import WidgetRecordatorios from './WidgetRecordatorios'
@@ -342,37 +342,13 @@ export default function Dashboard({ publicadores }) {
           </div>
         )}
 
-        {/* Aniversarios de la semana */}
-        {aniversariosSemana.length > 0 && (
-          <div className="card p-6 animate-slide-in">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="text-slate-700" size={24} />
-              <h2 className="text-lg font-semibold text-slate-900">Aniversarios Esta Semana</h2>
-            </div>
-            <div className="space-y-2">
-              {aniversariosSemana.map(p => (
-                <div key={p.id} className="flex justify-between items-center text-sm py-2 border-b border-slate-100 last:border-0">
-                  <div>
-                    <span className="font-medium text-slate-900">{formatearFecha(p.proximo.fecha)}</span>
-                    <span className="mx-2 text-slate-400">•</span>
-                    <span className="text-slate-700">{p.apellido}, {p.nombre}</span>
-                  </div>
-                  <span className="badge badge-gray">
-                    {p.proximo.anos > 1 ? `${p.proximo.anos} años` : '1 año'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Aniversarios del mes */}
       {aniversariosMes.length > 0 && (
         <div className="card p-6 animate-slide-in">
           <div className="flex items-center gap-2 mb-4">
-            <Cake className="text-slate-700" size={24} />
-            <h2 className="text-lg font-semibold text-slate-900">Aniversarios Este Mes</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Aniversarios Bautismo</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
             {aniversariosMes.map(p => (

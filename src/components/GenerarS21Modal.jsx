@@ -83,35 +83,35 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
 
   // Nombre
   if (publicador) {
-    doc.text(`${publicador.apellido}, ${publicador.nombre}`, 42, 26.5)
+    doc.text(`${publicador.apellido}, ${publicador.nombre}`, 25, 27)
   }
 
   // Fecha nacimiento
   if (publicador.fecha_nacimiento) {
     const fecha = new Date(publicador.fecha_nacimiento)
-    doc.text(fecha.toLocaleDateString('es-AR'), 60, 33.5)
+    doc.text(fecha.toLocaleDateString('es-AR'), 50, 33)
   }
 
   // Sexo
   if (publicador.sexo === 'Hombre') {
-    doc.text('X', 107.5, 33.5)
+    doc.text('X', 136.5, 33)
   }
   if (publicador.sexo === 'Mujer') {
-    doc.text('X', 137.5, 33.5)
+    doc.text('X', 172, 33)
   }
 
   // Bautismo
   if (publicador.fecha_bautismo) {
     const fecha = new Date(publicador.fecha_bautismo)
-    doc.text(fecha.toLocaleDateString('es-AR'), 60, 40.5)
+    doc.text(fecha.toLocaleDateString('es-AR'), 45, 38.5)
   }
 
   // Esperanza
   if (!publicador.esperanza || publicador.esperanza === 'Otras ovejas') {
-    doc.text('X', 107.5, 40.5)
+    doc.text('X', 136.5, 38.5)
   }
   if (publicador.esperanza === 'Ungido') {
-    doc.text('X', 147.5, 40.5)
+    doc.text('X', 172, 38.5)
   }
 
   // ======================
@@ -119,23 +119,23 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
   // ======================
 
   if (publicador.responsabilidad === 'Anciano') {
-    doc.text('X', 17.5, 50.5) 
+    doc.text('X', 7, 44.5) 
   }
 
   if (publicador.responsabilidad === 'Siervo Ministerial') {
-    doc.text('X', 47.5, 50.5)
+    doc.text('X', 29, 44.5)
   }
 
   if (publicador.tipo_servicio === 'Precursor Regular') {
-    doc.text('X', 97.5, 50.5)
+    doc.text('X', 72, 44.5)
   }
 
   if (publicador.tipo_servicio === 'Precursor Especial') {
-    doc.text('X', 147.5, 50.5)
+    doc.text('X', 116, 44.5)
   }
 
   if (publicador.tipo_servicio === 'Misionero') {
-    doc.text('X', 17.5, 57.5)
+    doc.text('X', 162, 44.5)
   }
 
   // ======================
@@ -148,13 +148,13 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
   ]
 
   const col = {
-  part: 71.5,
-  cursos: 100,
-  aux: 130,
-  horas: 155
+  part: 47,
+  cursos: 71.5,
+  aux: 97,
+  horas: 127
 }
 
-let y = 96
+let y = 74
 
   const esPrecursor =
     publicador.tipo_servicio === 'Precursor Regular' ||
@@ -188,14 +188,14 @@ let y = 96
     doc.text(String(informe.horas), col.horas, y, { align: 'center' })
   }
 
-  y += 7.2 // 🔥 este decimal es CLAVE para que cierre perfecto
+  y += 7.2 
 })
 
   // ======================
   // TOTALES
   // ======================
 
-  doc.text('Total', 20, y + 4.5)
+/*   doc.text('Total', 20, y + 4.5) */
 
   if (totalCursos > 0) {
    doc.text(String(totalCursos), col.cursos, y + 4.5, { align: 'center' })
