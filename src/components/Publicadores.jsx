@@ -37,6 +37,21 @@ export default function Publicadores({ publicadores, onReload }) {
     return acc
   }, {})
 
+  // Ordenar dentro de cada grupo: activos primero (alfabético), luego inactivos (alfabético)
+  Object.keys(publicadoresPorGrupo).forEach(grupo => {
+    publicadoresPorGrupo[grupo].sort((a, b) => {
+      // Primero separar por activo/inactivo
+      const aInactivo = a.tipo_servicio === 'Inactivo'
+      const bInactivo = b.tipo_servicio === 'Inactivo'
+      
+      if (aInactivo && !bInactivo) return 1  // a es inactivo, b no → a va después
+      if (!aInactivo && bInactivo) return -1 // b es inactivo, a no → a va primero
+      
+      // Si ambos son activos o ambos inactivos, ordenar alfabéticamente
+      return `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`)
+    })
+  })
+
   const handleEdit = (publicador) => {
     setPublicadorEditar(publicador)
     setShowEditModal(true)
@@ -56,7 +71,7 @@ export default function Publicadores({ publicadores, onReload }) {
             <h2 className="text-xl font-semibold text-slate-900">Publicadores</h2>
             <p className="text-slate-600 text-sm mt-1">
               {vistaActual === 'activos' 
-                ? `${publicadoresActivos.length} publicadores activos`
+                ? `${publicadoresActivos.length} publicadores`
                 : `${publicadores.filter(p => p.fecha_mudanza).length} publicadores mudados`
               }
             </p>
