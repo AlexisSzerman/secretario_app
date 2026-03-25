@@ -28,6 +28,8 @@ export default function EditPublicadorModal({ publicador, onClose, onSave }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showMudanzaModal, setShowMudanzaModal] = useState(false)
   const [fechaMudanza, setFechaMudanza] = useState('')
+  const [congregacionDestino, setCongregacionDestino] = useState('')
+
 
   useEffect(() => {
     if (publicador) {
@@ -130,7 +132,8 @@ const handleSubmit = async (e) => {
     
     try {
       await db.updatePublicador(publicador.id, {
-        fecha_mudanza: fechaMudanza
+        fecha_mudanza: fechaMudanza,
+        congregacion_destino: congregacionDestino || null
       })
       onSave()
     } catch (error) {
@@ -495,20 +498,37 @@ const handleSubmit = async (e) => {
               </h3>
               
               <div className="mb-4">
-                <p className="text-slate-700 font-medium mb-2">
+                <p className="text-slate-700 font-medium mb-4">
                   {publicador.apellido}, {publicador.nombre}
                 </p>
                 
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Fecha de mudanza:
-                </label>
-                <input
-                  type="date"
-                  value={fechaMudanza}
-                  onChange={(e) => setFechaMudanza(e.target.value)}
-                  className="custom-input w-full"
-                  required
-                />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Fecha de mudanza:
+                    </label>
+                    <input
+                      type="date"
+                      value={fechaMudanza}
+                      onChange={(e) => setFechaMudanza(e.target.value)}
+                      className="custom-input w-full"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Congregación de destino:
+                    </label>
+                    <input
+                      type="text"
+                      value={congregacionDestino}
+                      onChange={(e) => setCongregacionDestino(e.target.value)}
+                      className="custom-input w-full"
+                      placeholder="Ej: Parque Chacabuco, Buenos Aires"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
@@ -526,6 +546,7 @@ const handleSubmit = async (e) => {
                   onClick={() => {
                     setShowMudanzaModal(false)
                     setFechaMudanza('')
+                    setCongregacionDestino('')
                   }}
                   className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
                 >

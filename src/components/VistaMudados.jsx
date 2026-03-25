@@ -117,6 +117,15 @@ export default function VistaMudados({ publicadores, onReload }) {
                         </span>
                       </div>
 
+                      {pub.congregacion_destino && (
+                        <div className="flex items-center gap-2 mt-2 text-sm text-slate-600">
+                          <Home size={14} />
+                          <span>
+                            Destino: <strong>{pub.congregacion_destino}</strong>
+                          </span>
+                        </div>
+                      )}
+
                       {/* Info adicional */}
                       <div className="mt-3 space-y-1 text-sm text-slate-600">
                         {pub.grupo && (
