@@ -14,6 +14,36 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
     return fechaMes >= fechaInicio
   }
 
+  // NUEVA FUNCIÓN: Verifica si era precursor en el mes específico
+  const eraPrecursorEnMes = (publicador, mes, ano) => {
+    // Debe ser precursor regular o especial
+    const esPrecursor = publicador.tipo_servicio === 'Precursor Regular' || 
+                       publicador.tipo_servicio === 'Precursor Especial'
+    
+    if (!esPrecursor && !publicador.fecha_fin_precursor) {
+      // No es precursor actualmente y nunca lo fue (no tiene fecha_fin)
+      return false
+    }
+    
+    // Si no tiene fecha de inicio, no podemos saber
+    if (!publicador.fecha_inicio_precursor) return false
+    
+    const fechaMes = new Date(ano, mes - 1, 1)
+    const inicio = new Date(publicador.fecha_inicio_precursor)
+    
+    // Debe haber empezado antes o durante el mes
+    if (inicio > fechaMes) return false
+    
+    // Si tiene fecha_fin (discontinuó), debe haber terminado después del mes
+    if (publicador.fecha_fin_precursor) {
+      const fin = new Date(publicador.fecha_fin_precursor)
+      const finMes = new Date(ano, mes, 0) // Último día del mes
+      if (fin < finMes) return false
+    }
+    
+    return true
+  }
+
   // FILTRAR: Solo publicadores que DEBEN informar este mes
   const publicadoresDeberian = publicadores.filter(p => debeInformarEnMes(p))
   
@@ -24,10 +54,11 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
   const cursosTotales = informes.reduce((sum, i) => sum + (i.cursos || 0), 0)
   const horasTotales = informes.reduce((sum, i) => sum + (i.horas || 0), 0)
   
-  // Precursores
+  // Precursores - NUEVO: Basado en fechas
   const precursoresRegulares = publicadoresDeberian.filter(p => 
-    p.tipo_servicio === 'Precursor Regular'
+    eraPrecursorEnMes(p, mesActual.mes, mesActual.ano)
   ).length
+  
   const precursoresAuxiliares = informes.filter(i => i.precursor_auxiliar).length
   
   // Por grupo - CORREGIDO: Solo cuenta los que debían informar
@@ -117,7 +148,9 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
             <h3 className="text-lg font-semibold text-slate-900">Precursores Regulares</h3>
           </div>
           <div className="text-4xl font-semibold text-slate-900 mb-2">{precursoresRegulares}</div>
-          <p className="text-sm text-slate-600">Total de precursores regulares</p>
+          <p className="text-sm text-slate-600">
+            Que eran precursores en este mes
+          </p>
         </div>
 
         <div className="card p-6">

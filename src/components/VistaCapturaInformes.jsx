@@ -172,6 +172,7 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
                   cursos: parseInt(datos.cursos) || 0,
                   horas: parseInt(datos.horas) || 0,
                   precursor_auxiliar: datos.precursorAuxiliar,
+                  tipo_servicio_mes: pub.tipo_servicio, // Guarda el tipo de servicio del mes
                   notas: datos.notas || ''
                 }
 

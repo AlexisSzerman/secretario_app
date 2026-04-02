@@ -172,6 +172,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
             cursos: inf.cursos,
             horas: inf.horas,
             precursor_auxiliar: inf.precursorAuxiliar, // Usa el valor corregido
+            tipo_servicio_mes: inf.publicador.tipo_servicio, // Guarda el tipo de servicio del mes
             notas: inf.notas
           }
 

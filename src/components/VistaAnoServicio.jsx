@@ -26,169 +26,164 @@ export default function VistaAnoServicio({ publicadores }) {
     return fechaMes >= fechaInicio
   }
 
-  const loadAnalisis = async () => {
-    setLoading(true)
-    setLoadingMessage('Calculando año de servicio...')
-    
-    try {
-      const anoServicio = getAnoServicioActual()
-      const mesesAnoServicio = getMesesAnoServicio(anoServicio)
-      
-      setLoadingMessage('Identificando meses cerrados...')
-      
-      // CORREGIDO: Calcular meses cerrados del año de servicio
-      const hoy = new Date()
-      const diaActual = hoy.getDate()
-      const mesActual = hoy.getMonth() + 1
-      const anoActual = hoy.getFullYear()
-      
-      // El mes vencido es el mes ANTERIOR al actual
-      let mesVencido = mesActual - 1
-      let anoVencido = anoActual
-      if (mesVencido <= 0) {
-        mesVencido += 12
-        anoVencido -= 1
-      }
-      
-      // MESES CERRADOS: Incluye mes vencido si ya pasó el día 6
-      // (después del 5-6 ya no se aceptan informes del mes vencido)
-      const mesesCerrados = mesesAnoServicio.filter(m => {
-        const fechaMes = new Date(m.ano, m.mes - 1, 1)
-        const fechaVencido = new Date(anoVencido, mesVencido - 1, 1)
-        
-        // Si es el mes vencido, incluirlo solo si ya pasó el día 6
-        if (m.mes === mesVencido && m.ano === anoVencido) {
-          return diaActual >= 6  // Después del día 6, el mes vencido ya está cerrado
-        }
-        
-        // Para meses anteriores al vencido, siempre incluir
-        return fechaMes < fechaVencido
-      })
+const loadAnalisis = async () => {
+  setLoading(true)
+  setLoadingMessage('Calculando año de servicio...')
+  
+  try {
+    const anoServicio = getAnoServicioActual()
+    const mesesAnoServicio = getMesesAnoServicio(anoServicio)
 
-      const precursores = publicadores.filter(p => 
-        p.tipo_servicio === 'Precursor Regular' && 
-        p.tipo_servicio !== 'Inactivo'
-      )
+    const hoy = new Date()
+    const diaActual = hoy.getDate()
+    const mesActual = hoy.getMonth() + 1
+    const anoActual = hoy.getFullYear()
 
-      setLoadingMessage(`Cargando informes de ${mesesCerrados.length} meses...`)
-      
-      // OPTIMIZACIÓN: Cargar TODOS los informes de una vez (en paralelo)
-      const informesPromises = mesesCerrados.map(mesInfo => 
-        db.getInformesByMesAno(mesInfo.mes, mesInfo.ano)
-      )
-      const todosLosInformesPorMes = await Promise.all(informesPromises)
-      
-      setLoadingMessage(`Analizando ${precursores.length} precursores...`)
-      
-      // Crear mapa para búsqueda rápida: "mes-año" -> informes[]
-      const informesPorMesMap = new Map()
-      mesesCerrados.forEach((mesInfo, index) => {
-        const key = `${mesInfo.mes}-${mesInfo.ano}`
-        informesPorMesMap.set(key, todosLosInformesPorMes[index])
-      })
-
-      const analisisPrecursores = []
-
-      for (const pub of precursores) {
-        let horasTotales = 0
-        let mesesInformados = 0
-        let mesesDebiaInformar = 0  // NUEVO: cuenta solo meses donde debía informar
-
-        for (const mesInfo of mesesCerrados) {
-          // Solo cuenta si debía informar en ese mes
-          if (!debiaInformarEnMes(pub, mesInfo.mes, mesInfo.ano)) {
-            continue  // Salta este mes
-          }
-          
-          mesesDebiaInformar++  // Cuenta este mes como "debía informar"
-          
-          // Buscar en el mapa (O(1)) en lugar de query
-          const key = `${mesInfo.mes}-${mesInfo.ano}`
-          const informes = informesPorMesMap.get(key) || []
-          const informe = informes.find(i => i.publicador_id === pub.id)
-          
-          if (informe) {
-            horasTotales += informe.horas || 0
-            mesesInformados++
-          }
-        }
-
-        // NUEVA LÓGICA: Basada en horas/mes necesarias en meses restantes
-        const hoyFecha = new Date()
-        const mesActual = hoyFecha.getMonth() + 1  // Mes actual (no el vencido)
-        const anoActual = hoyFecha.getFullYear()
-        
-        // Calcular en qué mes del año de servicio estamos (1-12)
-        // Año de servicio: Sept (mes 1) - Agosto (mes 12)
-        let mesDelAnoServicio
-        if (mesActual >= 9) {
-          // Sept-Dic: meses 1-4 del año actual
-          mesDelAnoServicio = mesActual - 8  // Sept=1, Oct=2, Nov=3, Dic=4
-        } else {
-          // Ene-Ago: meses 5-12 del año siguiente
-          mesDelAnoServicio = mesActual + 4  // Ene=5, Feb=6, Mar=7, Abr=8, etc
-        }
-        
-        // Meses RESTANTES incluyendo el mes actual (que no se informó todavía)
-        // Si estamos en marzo (mes 7), quedan: mar, abr, may, jun, jul, ago = 6 meses
-        const totalMesesAno = 12
-        const mesesRestantes = totalMesesAno - mesDelAnoServicio + 1
-        
-        // Promedio actual
-        const promedioMensual = mesesInformados > 0 ? horasTotales / mesesInformados : 0
-        
-        // Proyección a 12 meses
-        const proyeccion12Meses = promedioMensual * 12
-        
-        // Horas que faltan para llegar a 560h y 600h
-        const horasFaltanPara560 = Math.max(560 - horasTotales, 0)
-        const horasFaltanPara600 = Math.max(600 - horasTotales, 0)
-        
-        // Horas/mes necesarias en meses restantes
-        const horasMesPara560 = mesesRestantes > 0 ? horasFaltanPara560 / mesesRestantes : 0
-        const horasMesPara600 = mesesRestantes > 0 ? horasFaltanPara600 / mesesRestantes : 0
-        
-        // NUEVA LÓGICA DE ESTADOS:
-        let estado = 'ok'
-        if (horasMesPara560 >= 60) {
-          estado = 'critico'  // Necesita ≥60h/mes (muy difícil)
-        } else if (horasMesPara560 >= 55) {
-          estado = 'atencion'  // Necesita 55-60h/mes (difícil)
-        } else if (proyeccion12Meses >= 560) {
-          estado = 'en-meta'  // Proyección ≥560h (alcanzará meta)
-        } else {
-          estado = 'bajo-meta'  // Proyección <560 pero alcanzable (<55h/mes necesarias)
-        }
-
-        analisisPrecursores.push({
-          ...pub,
-          horasTotales,
-          mesesInformados,
-          totalMesesAno,  // Siempre 12
-          mesesRestantes,  // Meses que faltan del año
-          promedioMensual: parseFloat(promedioMensual.toFixed(1)),
-          horasMesPara560: parseFloat(horasMesPara560.toFixed(1)),  // NUEVO
-          horasMesPara600: parseFloat(horasMesPara600.toFixed(1)),  // NUEVO
-          proyeccion12Meses: Math.round(proyeccion12Meses),
-          estado
-        })
-      }
-
-      analisisPrecursores.sort((a, b) => {
-        const estadoOrder = { 'critico': 0, 'atencion': 1, 'bajo-meta': 2, 'en-meta': 3, 'ok': 4 }
-        if (estadoOrder[a.estado] !== estadoOrder[b.estado]) {
-          return estadoOrder[a.estado] - estadoOrder[b.estado]
-        }
-        return a.proyeccion12Meses - b.proyeccion12Meses
-      })
-
-      setAnalisis(analisisPrecursores)
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
+    // Mes vencido
+    let mesVencido = mesActual - 1
+    let anoVencido = anoActual
+    if (mesVencido <= 0) {
+      mesVencido += 12
+      anoVencido -= 1
     }
+
+    // 🔒 Meses cerrados (solo para promedio)
+    const mesesCerradosSet = new Set(
+      mesesAnoServicio
+        .filter(m => {
+          const fechaMes = new Date(m.ano, m.mes - 1, 1)
+          const fechaVencido = new Date(anoVencido, mesVencido - 1, 1)
+
+          if (m.mes === mesVencido && m.ano === anoVencido) {
+            return diaActual >= 6
+          }
+
+          return fechaMes < fechaVencido
+        })
+        .map(m => `${m.mes}-${m.ano}`)
+    )
+
+    const precursores = publicadores.filter(p => 
+      p.tipo_servicio === 'Precursor Regular' && 
+      p.tipo_servicio !== 'Inactivo'
+    )
+
+    setLoadingMessage('Cargando informes...')
+
+    // 🔥 Traer TODOS los meses
+    const informesPromises = mesesAnoServicio.map(m =>
+      db.getInformesByMesAno(m.mes, m.ano)
+    )
+
+    const todosLosInformes = await Promise.all(informesPromises)
+
+    // Map mes-año → informes[]
+    const informesMap = new Map()
+    mesesAnoServicio.forEach((mesInfo, index) => {
+      const key = `${mesInfo.mes}-${mesInfo.ano}`
+      informesMap.set(key, todosLosInformes[index])
+    })
+
+    const analisisPrecursores = []
+
+    for (const pub of precursores) {
+      let horasTotales = 0
+      let mesesInformados = 0              // 🔥 UI
+      let mesesInformadosCerrados = 0      // 🔒 promedio
+
+      for (const mesInfo of mesesAnoServicio) {
+        if (!debiaInformarEnMes(pub, mesInfo.mes, mesInfo.ano)) continue
+
+        const key = `${mesInfo.mes}-${mesInfo.ano}`
+        const informes = informesMap.get(key) || []
+
+        const informe = informes.find(i => 
+          String(i.publicador_id) === String(pub.id)
+        )
+
+        if (informe) {
+          const horas = informe.horas || 0
+
+          // 🔥 acumulado real
+          horasTotales += horas
+          mesesInformados++
+
+          // 🔒 si es mes cerrado, cuenta para promedio
+          if (mesesCerradosSet.has(key)) {
+            mesesInformadosCerrados++
+          }
+        }
+      }
+
+      // === CÁLCULOS ===
+      let mesDelAnoServicio
+      if (mesActual >= 9) {
+        mesDelAnoServicio = mesActual - 8
+      } else {
+        mesDelAnoServicio = mesActual + 4
+      }
+
+      const totalMesesAno = 12
+      const mesesRestantes = totalMesesAno - mesDelAnoServicio + 1
+
+      const promedioMensual = mesesInformadosCerrados > 0 
+        ? horasTotales / mesesInformadosCerrados 
+        : 0
+
+      const proyeccion12Meses = promedioMensual * 12
+
+      const horasFaltanPara560 = Math.max(560 - horasTotales, 0)
+      const horasFaltanPara600 = Math.max(600 - horasTotales, 0)
+
+      const horasMesPara560 = mesesRestantes > 0 
+        ? horasFaltanPara560 / mesesRestantes 
+        : 0
+
+      const horasMesPara600 = mesesRestantes > 0 
+        ? horasFaltanPara600 / mesesRestantes 
+        : 0
+
+      let estado = 'ok'
+      if (horasMesPara560 >= 60) {
+        estado = 'critico'
+      } else if (horasMesPara560 >= 55) {
+        estado = 'atencion'
+      } else if (proyeccion12Meses >= 560) {
+        estado = 'en-meta'
+      } else {
+        estado = 'bajo-meta'
+      }
+
+      analisisPrecursores.push({
+        ...pub,
+        horasTotales: Math.round(horasTotales),
+        mesesInformados, // ✅ ESTE ES EL QUE VA A LA UI (ya está bien)
+        totalMesesAno,
+        mesesRestantes,
+        promedioMensual: parseFloat(promedioMensual.toFixed(1)),
+        horasMesPara560: parseFloat(horasMesPara560.toFixed(1)),
+        horasMesPara600: parseFloat(horasMesPara600.toFixed(1)),
+        proyeccion12Meses: Math.round(proyeccion12Meses),
+        estado
+      })
+    }
+
+    analisisPrecursores.sort((a, b) => {
+      const estadoOrder = { critico: 0, atencion: 1, 'bajo-meta': 2, 'en-meta': 3, ok: 4 }
+      if (estadoOrder[a.estado] !== estadoOrder[b.estado]) {
+        return estadoOrder[a.estado] - estadoOrder[b.estado]
+      }
+      return a.proyeccion12Meses - b.proyeccion12Meses
+    })
+
+    setAnalisis(analisisPrecursores)
+
+  } catch (error) {
+    console.error('Error:', error)
+  } finally {
+    setLoading(false)
   }
+}
 
   const anoServicio = getAnoServicioActual()
   

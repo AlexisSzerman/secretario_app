@@ -71,7 +71,7 @@ export default function Publicadores({ publicadores, onReload }) {
             <h2 className="text-xl font-semibold text-slate-900">Publicadores</h2>
             <p className="text-slate-600 text-sm mt-1">
               {vistaActual === 'activos' 
-                ? `${publicadoresActivos.length} publicadores`
+                ? `${publicadoresActivos.length} publicadores activos`
                 : `${publicadores.filter(p => p.fecha_mudanza).length} publicadores mudados`
               }
             </p>

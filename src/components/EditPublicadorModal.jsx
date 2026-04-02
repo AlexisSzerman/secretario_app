@@ -19,7 +19,10 @@ export default function EditPublicadorModal({ publicador, onClose, onSave }) {
     // NUEVOS: Para S-21
     fecha_nacimiento: publicador?.fecha_nacimiento || '',
     sexo: publicador?.sexo || '',
-    esperanza: publicador?.esperanza || 'Otras ovejas'
+    esperanza: publicador?.esperanza || 'Otras ovejas',
+    // NUEVOS: Para fechas de precursor
+    fecha_inicio_precursor: publicador?.fecha_inicio_precursor || '',
+    fecha_fin_precursor: publicador?.fecha_fin_precursor || ''
   })
   
   const [tipoServicioAnterior, setTipoServicioAnterior] = useState(publicador?.tipo_servicio || 'Publicador')
@@ -29,7 +32,7 @@ export default function EditPublicadorModal({ publicador, onClose, onSave }) {
   const [showMudanzaModal, setShowMudanzaModal] = useState(false)
   const [fechaMudanza, setFechaMudanza] = useState('')
   const [congregacionDestino, setCongregacionDestino] = useState('')
-
+  const [discontinuo, setDiscontinuo] = useState(!!publicador?.fecha_fin_precursor)
 
   useEffect(() => {
     if (publicador) {
@@ -96,7 +99,10 @@ const handleSubmit = async (e) => {
       en_congregacion_desde: datos.en_congregacion_desde || null,
       fecha_nacimiento: datos.fecha_nacimiento || null,
       sexo: datos.sexo || null,
-      esperanza: datos.esperanza || 'Otras ovejas'
+      esperanza: datos.esperanza || 'Otras ovejas',
+      // Fechas de precursor
+      fecha_inicio_precursor: datos.fecha_inicio_precursor || null,
+      fecha_fin_precursor: discontinuo ? (datos.fecha_fin_precursor || null) : null
     }
 
     if (publicador) {
@@ -234,6 +240,75 @@ const handleSubmit = async (e) => {
               </select>
             </div>
           </div>
+
+          {/* Fechas de Precursor - NUEVO */}
+          {esPrecursorRegular && (
+            <div className="rounded-lg p-4 bg-amber-50 border border-amber-200">
+              <h3 className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
+                <Star className="text-amber-600" size={16} />
+                Período como Precursor
+              </h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-amber-900 mb-2">
+                    📅 Fecha de inicio como precursor
+                  </label>
+                  <input
+                    type="date"
+                    value={datos.fecha_inicio_precursor}
+                    onChange={(e) => setDatos({...datos, fecha_inicio_precursor: e.target.value})}
+                    className="custom-input"
+                  />
+                  <p className="text-xs text-amber-700 mt-1">
+                    Cuándo empezó como precursor (si cambió varias veces, la fecha más reciente)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={discontinuo}
+                      onChange={(e) => {
+                        setDiscontinuo(e.target.checked)
+                        if (!e.target.checked) {
+                          setDatos({...datos, fecha_fin_precursor: ''})
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-amber-900">
+                      Discontinuó el servicio precursor
+                    </span>
+                  </label>
+                </div>
+
+                {discontinuo && (
+                  <div className="pl-6">
+                    <label className="block text-sm font-medium text-amber-900 mb-2">
+                      📅 Fecha de fin
+                    </label>
+                    <input
+                      type="date"
+                      value={datos.fecha_fin_precursor}
+                      onChange={(e) => setDatos({...datos, fecha_fin_precursor: e.target.value})}
+                      className="custom-input"
+                    />
+                    <p className="text-xs text-amber-700 mt-1">
+                      Cuándo dejó de ser precursor (sus meses anteriores seguirán contando en estadísticas)
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-amber-100 border border-amber-300 rounded p-2 text-xs text-amber-800">
+                  <Info size={12} className="inline mr-1" />
+                  Estas fechas se usan para contar precursores en estadísticas históricas.
+                  Si fue precursor en febrero 2025, se contará en las estadísticas de ese mes.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* En congregación desde */}
           {esActivo && (

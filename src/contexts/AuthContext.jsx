@@ -1,7 +1,4 @@
-// AuthContext.jsx - Contexto de Autenticación
-// Copiar a: src/contexts/AuthContext.jsx (CREAR CARPETA contexts)
-
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
@@ -18,74 +15,82 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // 🔥 evita marcar loading varias veces
+  const initialLoadDone = useRef(false)
+
   useEffect(() => {
-    // Verificar sesión actual
-    checkUser()
+    // 1. Obtener sesión inicial (UNA sola vez)
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
 
-    // Escuchar cambios de autenticación
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event)
-        setUser(session?.user ?? null)
+      setUser(session?.user ?? null)
+      setLoading(false)
+      initialLoadDone.current = true
+    }
+
+    initSession()
+
+    // 2. Escuchar cambios de auth
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      const newUser = session?.user ?? null
+
+      console.log('Auth event:', event)
+
+      // 🔥 SOLO actualizar si realmente cambió el usuario
+      setUser(prevUser => {
+        if (prevUser?.id === newUser?.id) return prevUser
+        return newUser
+      })
+
+      // 🔥 NO volver a activar loading después del primer load
+      if (!initialLoadDone.current) {
         setLoading(false)
+        initialLoadDone.current = true
       }
-    )
+    })
 
-    // Cleanup
     return () => {
-      authListener?.subscription?.unsubscribe()
+      listener?.subscription?.unsubscribe()
     }
   }, [])
 
-  const checkUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-    } catch (error) {
-      console.error('Error verificando usuario:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const signIn = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-      
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (error) {
       console.error('Error en login:', error)
       return { data: null, error }
     }
+
+    return { data, error: null }
   }
 
   const signUp = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      })
-      
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
+    })
+
+    if (error) {
       console.error('Error en registro:', error)
       return { data: null, error }
     }
+
+    return { data, error: null }
   }
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      setUser(null)
-    } catch (error) {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
       console.error('Error en logout:', error)
+      return
     }
+
+    setUser(null)
   }
 
   const value = {
