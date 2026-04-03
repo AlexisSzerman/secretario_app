@@ -176,15 +176,16 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     const alerta = []
 
     for (const pub of publicadoresDeberian) {
-      // Solo evaluar si no informó este mes
-      const informoEsteMes = informes.find(i => i.publicador_id === pub.id)
-      if (informoEsteMes) continue
+      // Solo evaluar quienes SÍ informaron este mes pero NO participaron
+      const informeEsteMes = informes.find(i => i.publicador_id === pub.id)
+      if (!informeEsteMes) continue           // no informó = no aplica
+      if (informeEsteMes.participo) continue  // participó = no aplica
 
-      // Obtener mes anterior
+      // Verificar el mes anterior
       const informeMesAnterior = await getInformesMesAnterior(pub.id)
-      
-      // Si tampoco informó el mes anterior = 2 meses sin informar
-      if (!informeMesAnterior) {
+
+      // Si el mes anterior tampoco participó (o no informó) = 2 meses sin participar
+      if (!informeMesAnterior || !informeMesAnterior.participo) {
         alerta.push(pub)
       }
     }
@@ -201,168 +202,130 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
 
   // === EXPORTAR PDF ===
   const exportarPDF = () => {
-    const doc = new jsPDF()
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const mesNombre = getMesNombre(mesActual.mes).toUpperCase() + ' ' + mesActual.ano
-    
-    // Título
-    doc.setFontSize(16)
-    doc.text('INFORME S-1', 105, 15, { align: 'center' })
-    doc.setFontSize(12)
-    doc.text(mesNombre, 105, 22, { align: 'center' })
+    const M = 10
+    const PW = 210
+    const UW = PW - M * 2
 
-    let y = 35
+    const filled = (x, y, w, h, r, g, b) => {
+      doc.setFillColor(r, g, b)
+      doc.rect(x, y, w, h, 'F')
+    }
+    const txt = (text, x, y, size, bold, color = [30, 30, 30], align = 'left') => {
+      doc.setFontSize(size)
+      doc.setFont('helvetica', bold ? 'bold' : 'normal')
+      doc.setTextColor(...color)
+      doc.text(String(text), x, y, { align })
+    }
 
-    // Asistencia
+    // HEADER
+    filled(0, 0, PW, 20, 30, 64, 175)
+    txt('INFORME S-1', PW / 2, 8.5, 13, true, [255, 255, 255], 'center')
+    txt('PREDICACION Y ASISTENCIA A LAS REUNIONES', PW / 2, 13.5, 7, false, [180, 200, 255], 'center')
+    txt(mesNombre, PW / 2, 18.5, 9, true, [255, 255, 255], 'center')
+
+    let y = 25
+
+    // ASISTENCIA
     if (asistenciaFinSemana || asistenciaEntreSemana) {
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'bold')
-      doc.text('ASISTENCIA PROMEDIO', 15, y)
-      y += 7
-      doc.setFont(undefined, 'normal')
+      filled(M, y, UW, 14, 241, 245, 249)
+      filled(M, y, UW, 5.5, 71, 85, 105)
+      txt('ASISTENCIA PROMEDIO', M + UW / 2, y + 3.8, 7, true, [255, 255, 255], 'center')
+      let ax = M + 10
+      const ay = y + 11
       if (asistenciaFinSemana) {
-        doc.text(`Fin de semana: ${asistenciaFinSemana}`, 15, y)
-        y += 5
+        txt('Fin de semana:', ax, ay, 8, false)
+        txt(String(asistenciaFinSemana), ax + 32, ay, 8, true)
+        ax += 85
       }
       if (asistenciaEntreSemana) {
-        doc.text(`Entre semana: ${asistenciaEntreSemana}`, 15, y)
-        y += 5
+        txt('Entre semana:', ax, ay, 8, false)
+        txt(String(asistenciaEntreSemana), ax + 30, ay, 8, true)
       }
-      y += 5
+      y += 18
     }
 
-    // Cifras S-1
-    doc.setFont(undefined, 'bold')
-    doc.text('PUBLICADORES', 15, y)
-    y += 7
-    doc.setFont(undefined, 'normal')
-    doc.text(`Total activos: ${stats.totalPublicadoresActivos}`, 15, y)
-    y += 5
-    doc.text(`Informes: ${stats.publicadores.informes}`, 15, y)
-    y += 5
-    doc.text(`Cursos: ${stats.publicadores.cursos}`, 15, y)
-    y += 10
+    // BLOQUES STATS (3 columnas)
+    const colW = (UW - 8) / 3
+    const cols = [M, M + colW + 4, M + (colW + 4) * 2]
+    const statsH = 34
 
-    doc.setFont(undefined, 'bold')
-    doc.text('PRECURSORES AUXILIARES', 15, y)
-    y += 7
-    doc.setFont(undefined, 'normal')
-    doc.text(`Informes: ${stats.precursoresAuxiliares.informes}`, 15, y)
-    y += 5
-    doc.text(`Horas: ${stats.precursoresAuxiliares.horas}`, 15, y)
-    y += 5
-    doc.text(`Cursos: ${stats.precursoresAuxiliares.cursos}`, 15, y)
-    y += 10
-
-    doc.setFont(undefined, 'bold')
-    doc.text('PRECURSORES REGULARES', 15, y)
-    y += 7
-    doc.setFont(undefined, 'normal')
-    doc.text(`Informes: ${stats.precursoresRegulares.informes}`, 15, y)
-    y += 5
-    doc.text(`Horas: ${stats.precursoresRegulares.horas}`, 15, y)
-    y += 5
-    doc.text(`Cursos: ${stats.precursoresRegulares.cursos}`, 15, y)
-    y += 15
-
-    // Listas
-    if (precursoresAuxiliaresLista.length > 0) {
-      doc.setFont(undefined, 'bold')
-      doc.text('PRECURSORES AUXILIARES:', 15, y)
-      y += 6
-      doc.setFont(undefined, 'normal')
-      doc.setFontSize(9)
-      precursoresAuxiliaresLista.forEach(pub => {
-        if (y < 280) {
-          doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
-          y += 5
-        }
-      })
-      y += 5
-      doc.setFontSize(10)
-    }
-
-    if (nuevosPublicadores.length > 0 && y < 250) {
-      doc.setFont(undefined, 'bold')
-      doc.text('NUEVOS PUBLICADORES:', 15, y)
-      y += 6
-      doc.setFont(undefined, 'normal')
-      doc.setFontSize(9)
-      nuevosPublicadores.forEach(pub => {
-        if (y < 280) {
-          doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
-          y += 5
-        }
-      })
-      y += 5
-      doc.setFontSize(10)
-    }
-
-    // NUEVO: Publicadores mudados
-    if (publicadoresMudados.length > 0) {
-      // Si no hay espacio suficiente, agregar nueva página
-      if (y > 250) {
-        doc.addPage()
-        y = 20
-      }
-      doc.setFont(undefined, 'bold')
-      doc.text('MUDADOS:', 15, y)
-      y += 6
-      doc.setFont(undefined, 'normal')
-      doc.setFontSize(9)
-      publicadoresMudados.forEach(pub => {
-        if (y > 280) {
-          doc.addPage()
-          y = 20
-        }
-        doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
-        y += 5
-      })
-      y += 5
-      doc.setFontSize(10)
-    }
-
-    if (noParticiparon.length > 0) {
-      // Si no hay espacio suficiente, agregar nueva página
-      if (y > 250) {
-        doc.addPage()
-        y = 20
-      }
-      doc.setFont(undefined, 'bold')
-      doc.text('NO PARTICIPARON:', 15, y)
-      y += 6
-      doc.setFont(undefined, 'normal')
-      doc.setFontSize(9)
-      noParticiparon.forEach(pub => {
-        if (y > 280) {
-          doc.addPage()
-          y = 20
-        }
-        doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
-        y += 5
-      })
-      y += 5
-      doc.setFontSize(10)
-    }
-
-    if (publicadoresAlerta.length > 0 && y < 220) {
-      if (y > 200) {
-        doc.addPage()
-        y = 20
-      }
-      doc.setFont(undefined, 'bold')
-      doc.text('IRREGULARES PROXIMO MES (2 meses sin informar):', 15, y)
-      y += 6
-      doc.setFont(undefined, 'normal')
-      doc.setFontSize(9)
-      publicadoresAlerta.forEach(pub => {
-        if (y > 280) {
-          doc.addPage()
-          y = 20
-        }
-        doc.text(`• ${pub.apellido}, ${pub.nombre}`, 15, y)
-        y += 5
+    const drawStatBox = (x, bg, hd, title, rows) => {
+      filled(x, y, colW, statsH, ...bg)
+      filled(x, y, colW, 7, ...hd)
+      txt(title, x + colW / 2, y + 4.8, 6.8, true, [255, 255, 255], 'center')
+      let ry = y + 13
+      rows.forEach(([label, value]) => {
+        txt(label, x + 3, ry, 8, false)
+        txt(String(value), x + colW - 3, ry, 9, true, [30, 30, 30], 'right')
+        ry += 7
       })
     }
+
+    drawStatBox(cols[0], [219, 234, 254], [30, 64, 175], 'PUBLICADORES', [
+      ['Total activos',   stats.totalPublicadoresActivos],
+      ['Informes',        stats.publicadores.informes],
+      ['Cursos biblicos', stats.publicadores.cursos],
+    ])
+    drawStatBox(cols[1], [254, 249, 195], [133, 77, 14], 'PREC. AUXILIARES', [
+      ['Informes', stats.precursoresAuxiliares.informes],
+      ['Horas',    stats.precursoresAuxiliares.horas],
+      ['Cursos',   stats.precursoresAuxiliares.cursos],
+    ])
+    drawStatBox(cols[2], [254, 243, 199], [120, 53, 15], 'PREC. REGULARES', [
+      ['Informes', stats.precursoresRegulares.informes],
+      ['Horas',    stats.precursoresRegulares.horas],
+      ['Cursos',   stats.precursoresRegulares.cursos],
+    ])
+
+    y += statsH + 5
+
+    // LISTAS (2 columnas, balanceadas por altura)
+    const allLists = []
+    if (precursoresAuxiliaresLista.length > 0)
+      allLists.push({ title: 'PRECURSORES AUXILIARES', items: precursoresAuxiliaresLista, bg: [254,249,195], hd: [133,77,14] })
+    if (nuevosPublicadores.length > 0)
+      allLists.push({ title: 'NUEVOS PUBLICADORES',    items: nuevosPublicadores,          bg: [220,252,231], hd: [22,101,52] })
+    if (publicadoresMudados.length > 0)
+      allLists.push({ title: 'MUDADOS',                items: publicadoresMudados,          bg: [255,237,213], hd: [154,52,18] })
+    if (noParticiparon.length > 0)
+      allLists.push({ title: 'NO PARTICIPARON',        items: noParticiparon,              bg: [241,245,249], hd: [71,85,105] })
+    if (publicadoresAlerta.length > 0)
+      allLists.push({ title: 'IRREGULARES PROXIMO MES',items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
+
+    const lColW = (UW - 5) / 2
+    const lc = [M, M + lColW + 5]
+    const itemH = 4.5
+    const hdH = 6.5
+
+    // Balancear listas entre columnas por altura total
+    const itemHeights = allLists.map(l => hdH + l.items.length * itemH + 7)
+    const col1idx = [], col2idx = []
+    let h1 = 0, h2 = 0
+    itemHeights.forEach((h, i) => {
+      if (h1 <= h2) { col1idx.push(i); h1 += h }
+      else          { col2idx.push(i); h2 += h }
+    })
+
+    const drawList = (list, x, startY) => {
+      const h = hdH + list.items.length * itemH + 4
+      filled(x, startY, lColW, h, ...list.bg)
+      filled(x, startY, lColW, hdH, ...list.hd)
+      txt(`${list.title} (${list.items.length})`, x + 3, startY + 4.5, 6.5, true, [255, 255, 255])
+      list.items.forEach((pub, idx) => {
+        txt(`• ${pub.apellido}, ${pub.nombre}`, x + 3, startY + hdH + 4 + idx * itemH, 7.5, false)
+      })
+      return startY + h + 3
+    }
+
+    let y1 = y, y2 = y
+    col1idx.forEach(i => { y1 = drawList(allLists[i], lc[0], y1) })
+    col2idx.forEach(i => { y2 = drawList(allLists[i], lc[1], y2) })
+
+    // FOOTER
+    filled(0, 290, PW, 7, 30, 64, 175)
+    txt(`Generado el ${new Date().toLocaleDateString('es-AR')}`, PW / 2, 294.5, 6, false, [200, 215, 255], 'center')
 
     doc.save(`S1-${mesNombre.replace(' ', '-')}.pdf`)
   }
