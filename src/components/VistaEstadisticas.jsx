@@ -16,33 +16,39 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
 
   // NUEVA FUNCIÓN: Verifica si era precursor en el mes específico
   const eraPrecursorEnMes = (publicador, mes, ano) => {
-    // Debe ser precursor regular o especial
-    const esPrecursor = publicador.tipo_servicio === 'Precursor Regular' || 
-                       publicador.tipo_servicio === 'Precursor Especial'
-    
-    if (!esPrecursor && !publicador.fecha_fin_precursor) {
-      // No es precursor actualmente y nunca lo fue (no tiene fecha_fin)
-      return false
-    }
-    
-    // Si no tiene fecha de inicio, no podemos saber
-    if (!publicador.fecha_inicio_precursor) return false
-    
-    const fechaMes = new Date(ano, mes - 1, 1)
-    const inicio = new Date(publicador.fecha_inicio_precursor)
-    
-    // Debe haber empezado antes o durante el mes
-    if (inicio > fechaMes) return false
-    
-    // Si tiene fecha_fin (discontinuó), debe haber terminado después del mes
-    if (publicador.fecha_fin_precursor) {
-      const fin = new Date(publicador.fecha_fin_precursor)
-      const finMes = new Date(ano, mes, 0) // Último día del mes
-      if (fin < finMes) return false
-    }
-    
+  const esPrecursorActual =
+    publicador.tipo_servicio === 'Precursor Regular' ||
+    publicador.tipo_servicio === 'Precursor Especial'
+
+  const tieneFechas =
+    publicador.fecha_inicio_precursor || publicador.fecha_fin_precursor
+
+  const fechaMesInicio = new Date(ano, mes - 1, 1)
+  const fechaMesFin = new Date(ano, mes, 0)
+
+  // 🟢 Caso 1: Es precursor actual y NO hay fechas → asumir que sí
+  if (esPrecursorActual && !tieneFechas) {
     return true
   }
+
+  // 🟢 Caso 2: Tiene fechas → validar correctamente
+  if (publicador.fecha_inicio_precursor) {
+    const inicio = new Date(publicador.fecha_inicio_precursor)
+
+    // Si empezó después del mes → no cuenta
+    if (inicio > fechaMesFin) return false
+  }
+
+  if (publicador.fecha_fin_precursor) {
+    const fin = new Date(publicador.fecha_fin_precursor)
+
+    // Si terminó antes del mes → no cuenta
+    if (fin < fechaMesInicio) return false
+  }
+
+  // 🟢 Caso válido
+  return esPrecursorActual || tieneFechas
+}
 
   // FILTRAR: Solo publicadores que DEBEN informar este mes
   const publicadoresDeberian = publicadores.filter(p => debeInformarEnMes(p))
