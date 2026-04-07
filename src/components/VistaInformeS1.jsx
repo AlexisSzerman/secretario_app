@@ -172,26 +172,24 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     calcularAlerta()
   }, [publicadores, informes, mesActual])
 
-  const calcularAlerta = async () => {
-    const alerta = []
+const calcularAlerta = async () => {
+  const alerta = []
 
-    for (const pub of publicadoresDeberian) {
-      // Solo evaluar quienes SÍ informaron este mes pero NO participaron
-      const informeEsteMes = informes.find(i => i.publicador_id === pub.id)
-      if (!informeEsteMes) continue           // no informó = no aplica
-      if (informeEsteMes.participo) continue  // participó = no aplica
+  for (const pub of publicadoresDeberian) {
+    const informeEsteMes = informes.find(i => i.publicador_id === pub.id)
+    if (!informeEsteMes) continue
+    if (informeEsteMes.participo) continue
 
-      // Verificar el mes anterior
-      const informeMesAnterior = await getInformesMesAnterior(pub.id)
+    const informeMesAnterior = await getInformesMesAnterior(pub.id)
 
-      // Si el mes anterior tampoco participó (o no informó) = 2 meses sin participar
-      if (!informeMesAnterior || !informeMesAnterior.participo) {
-        alerta.push(pub)
-      }
+    // ✅ Solo si HAY informe anterior Y tampoco participó
+    if (informeMesAnterior && !informeMesAnterior.participo) {
+      alerta.push(pub)
     }
-
-    setPublicadoresAlerta(alerta)
   }
+
+  setPublicadoresAlerta(alerta)
+}
 
   // === COPIAR AL PORTAPAPELES ===
   const copiarAlPortapapeles = (texto, id) => {
