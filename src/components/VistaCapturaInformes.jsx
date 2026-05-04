@@ -14,6 +14,7 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
   // FUNCIÓN HELPER: Verifica si debe informar en este mes
   const debeInformarEnMes = (publicador) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
+    if (publicador.fecha_mudanza) return false
     
     const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
     if (!fechaBase) return true
