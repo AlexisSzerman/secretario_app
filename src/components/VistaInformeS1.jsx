@@ -55,39 +55,17 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
     const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
     
-    // Verificar fecha de inicio
     if (fechaBase) {
       const fechaInicio = new Date(fechaBase)
       if (fechaMes < fechaInicio) return false
     }
     
-    // NUEVO: Verificar fecha de mudanza
     if (publicador.fecha_mudanza) {
       const fechaSalida = new Date(publicador.fecha_mudanza)
-      // Si el mes es posterior a la mudanza, no debía informar
       if (fechaMes > fechaSalida) return false
     }
     
     return true
-  }
-
-  // FUNCIÓN HELPER: Obtener informes del mes anterior
-  const getInformesMesAnterior = async (publicadorId) => {
-    let mes = mesActual.mes - 1
-    let ano = mesActual.ano
-    
-    if (mes <= 0) {
-      mes += 12
-      ano -= 1
-    }
-    
-    try {
-      const informesMes = await db.getInformesByMesAno(mes, ano)
-      return informesMes.find(inf => inf.publicador_id === publicadorId)
-    } catch (error) {
-      console.error('Error obteniendo informes anteriores:', error)
-      return null
-    }
   }
 
   const publicadoresActivos = publicadores.filter(p => 
@@ -154,42 +132,64 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     return fecha.getMonth() + 1 === mesActual.mes && fecha.getFullYear() === mesActual.ano
   })
 
-  // NUEVO: Publicadores mudados (fecha_mudanza = mes actual)
+  // 3. Publicadores mudados (fecha_mudanza = mes actual)
   const publicadoresMudados = publicadores.filter(pub => {
     if (!pub.fecha_mudanza) return false
     const fecha = new Date(pub.fecha_mudanza)
     return fecha.getMonth() + 1 === mesActual.mes && fecha.getFullYear() === mesActual.ano
   })
 
-  // 3. NO PARTICIPARON (informaron pero no participaron)
+  // 4. NO PARTICIPARON (informaron pero no participaron)
   const noParticiparon = informes
     .filter(inf => !inf.participo)
     .map(inf => publicadores.find(p => p.id === inf.publicador_id))
     .filter(Boolean)
 
-  // 4. Irregulares próximo mes (2 meses sin informar consecutivos)
+  // 5. Irregulares: 3 meses consecutivos sin informar
   useEffect(() => {
     calcularAlerta()
   }, [publicadores, informes, mesActual])
 
-const calcularAlerta = async () => {
-  const alerta = []
+  const calcularAlerta = async () => {
+    const alerta = []
 
-  for (const pub of publicadoresDeberian) {
-    const informeEsteMes = informes.find(i => i.publicador_id === pub.id)
-    if (!informeEsteMes) continue
-    if (informeEsteMes.participo) continue
-
-    const informeMesAnterior = await getInformesMesAnterior(pub.id)
-
-    // ✅ Solo si HAY informe anterior Y tampoco participó
-    if (informeMesAnterior && !informeMesAnterior.participo) {
-      alerta.push(pub)
+    // Helper para retroceder N meses correctamente
+    const getMesAno = (offset) => {
+      let mes = mesActual.mes + offset
+      let ano = mesActual.ano
+      while (mes <= 0) { mes += 12; ano -= 1 }
+      return { mes, ano }
     }
-  }
 
-  setPublicadoresAlerta(alerta)
-}
+    const mesAno1 = getMesAno(-1)
+    const mesAno2 = getMesAno(-2)
+
+    try {
+      // Solo 2 queries para todos los publicadores
+      const [informesMes1, informesMes2] = await Promise.all([
+        db.getInformesByMesAno(mesAno1.mes, mesAno1.ano),
+        db.getInformesByMesAno(mesAno2.mes, mesAno2.ano)
+      ])
+
+      for (const pub of publicadoresDeberian) {
+        const inf0 = informes.find(i => i.publicador_id === pub.id)
+        const inf1 = informesMes1.find(i => i.publicador_id === pub.id)
+        const inf2 = informesMes2.find(i => i.publicador_id === pub.id)
+
+        const noParticipo0 = !inf0 || !inf0.participo
+        const noParticipo1 = !inf1 || !inf1.participo
+        const noParticipo2 = !inf2 || !inf2.participo
+
+        if (noParticipo0 && noParticipo1 && noParticipo2) {
+          alerta.push(pub)
+        }
+      }
+    } catch (error) {
+      console.error('Error calculando irregulares:', error)
+    }
+
+    setPublicadoresAlerta(alerta)
+  }
 
   // === COPIAR AL PORTAPAPELES ===
   const copiarAlPortapapeles = (texto, id) => {
@@ -290,14 +290,13 @@ const calcularAlerta = async () => {
     if (noParticiparon.length > 0)
       allLists.push({ title: 'NO PARTICIPARON',        items: noParticiparon,              bg: [241,245,249], hd: [71,85,105] })
     if (publicadoresAlerta.length > 0)
-      allLists.push({ title: 'IRREGULARES PROXIMO MES',items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
+      allLists.push({ title: 'IRREGULARES',            items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
 
     const lColW = (UW - 5) / 2
     const lc = [M, M + lColW + 5]
     const itemH = 4.5
     const hdH = 6.5
 
-    // Balancear listas entre columnas por altura total
     const itemHeights = allLists.map(l => hdH + l.items.length * itemH + 7)
     const col1idx = [], col2idx = []
     let h1 = 0, h2 = 0
@@ -647,7 +646,7 @@ const calcularAlerta = async () => {
         </div>
       )}
 
-      {/* NUEVO: Publicadores Mudados */}
+      {/* Publicadores Mudados */}
       {publicadoresMudados.length > 0 && (
         <div className="card p-6 bg-orange-50 border-orange-200">
           <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -681,15 +680,15 @@ const calcularAlerta = async () => {
         </div>
       )}
 
-      {/* Irregulares próximo mes (2 meses sin informar) */}
+      {/* Irregulares: 3 meses consecutivos sin informar */}
       {publicadoresAlerta.length > 0 && (
         <div className="card p-6 bg-red-50 border-red-200">
           <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <AlertCircle className="text-red-600" size={20} />
-            Irregulares Próximo Mes ({publicadoresAlerta.length})
+            Irregulares ({publicadoresAlerta.length})
           </h4>
           <p className="text-sm text-red-700 mb-3">
-            2 meses sin informar - serán irregulares si no informan el próximo mes
+            3 meses consecutivos sin informar
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {publicadoresAlerta.map(pub => (
