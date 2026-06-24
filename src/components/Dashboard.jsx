@@ -36,22 +36,28 @@ export default function Dashboard({ publicadores }) {
   }, [publicadores])
 
   // FUNCIÓN HELPER: Verifica si debía informar en un mes específico
-  const debiaInformarEnMes = (publicador, mes, ano) => {
-    if (publicador.tipo_servicio === 'Inactivo') {
-      return false
-    }
-
-    const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
-    
-    if (!fechaBase) {
-      return true
-    }
-
-    const fechaMes = new Date(ano, mes - 1, 1)
-    const fechaInicio = new Date(fechaBase)
-    
-    return fechaMes >= fechaInicio
+const debiaInformarEnMes = (publicador, mes, ano) => {
+  if (publicador.tipo_servicio === 'Inactivo') {
+    return false
   }
+
+  // AGREGAR ESTO:
+  if (publicador.fecha_mudanza) {
+    const primerDiaMes = new Date(ano, mes - 1, 1)
+    if (primerDiaMes >= new Date(publicador.fecha_mudanza)) return false
+  }
+
+  const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+  
+  if (!fechaBase) {
+    return true
+  }
+
+  const fechaMes = new Date(ano, mes - 1, 1)
+  const fechaInicio = new Date(fechaBase)
+  
+  return fechaMes >= fechaInicio
+}
 
   const loadStats = async () => {
     setLoading(true)
@@ -250,7 +256,7 @@ export default function Dashboard({ publicadores }) {
                 ⚠️ {alertaDosAMeses.length} Publicador{alertaDosAMeses.length > 1 ? 'es' : ''} con 2 Meses Consecutivos Sin Participar
               </h3>
               <p className="text-sm text-orange-800 mb-3">
-                Atención: Estos hermanos necesitan seguimiento pastoral urgente:
+                Atención: Estos hermanos necesitan atención urgente:
               </p>
               <div className="space-y-1">
                 {alertaDosAMeses.slice(0, 5).map(p => (
@@ -279,7 +285,7 @@ export default function Dashboard({ publicadores }) {
                 🔴 {irregulares.length} Publicador{irregulares.length > 1 ? 'es' : ''} Irregular{irregulares.length > 1 ? 'es' : ''}
               </h3>
               <p className="text-sm text-red-800 mb-3">
-                3 meses consecutivos sin participar en la predicación:
+                Mínimo 3 meses consecutivos sin participar en la predicación:
               </p>
               <div className="space-y-1">
                 {irregulares.slice(0, 5).map(p => (
