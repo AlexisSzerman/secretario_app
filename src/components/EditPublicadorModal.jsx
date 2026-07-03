@@ -16,6 +16,9 @@ export default function EditPublicadorModal({ publicador, onClose, onSave }) {
     bautizado: publicador?.bautizado || false,
     fecha_bautismo: publicador?.fecha_bautismo || '',
     en_congregacion_desde: publicador?.en_congregacion_desde || '',
+    // NUEVO: fecha opcional para habilitar carga de un mes de transición
+    // sin afectar "Nuevos Publicadores" en el Informe S-1
+    informar_desde: publicador?.informar_desde || '',
     // NUEVOS: Para S-21
     fecha_nacimiento: publicador?.fecha_nacimiento || '',
     sexo: publicador?.sexo || '',
@@ -97,6 +100,7 @@ const handleSubmit = async (e) => {
       fecha_bautismo: datos.fecha_bautismo || null,
       fecha_llegada: datos.fecha_llegada || null,
       en_congregacion_desde: datos.en_congregacion_desde || null,
+      informar_desde: datos.informar_desde || null,
       fecha_nacimiento: datos.fecha_nacimiento || null,
       sexo: datos.sexo || null,
       esperanza: datos.esperanza || 'Otras ovejas',
@@ -352,6 +356,32 @@ const handleSubmit = async (e) => {
                     </p>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Informar desde (opcional) - NUEVO */}
+          {esActivo && (
+            <div className="rounded-lg p-4 bg-slate-50 border border-slate-200">
+              <label className="block text-sm font-medium text-slate-800 mb-2">
+                Informar desde (opcional)
+              </label>
+              <input
+                type="date"
+                value={datos.informar_desde}
+                onChange={(e) => setDatos({...datos, informar_desde: e.target.value})}
+                className="custom-input"
+              />
+              <div className="flex items-start gap-2 mt-2">
+                <Info className="mt-0.5 flex-shrink-0 text-slate-500" size={16} />
+                <p className="text-xs text-slate-600">
+                  Dejar vacío si coincide con "En congregación desde". Completar solo 
+                  si el hermano debe cargar un informe de un mes <strong>anterior</strong> a 
+                  su fecha oficial en la congregación (ej: llegó el 01/07 pero necesita 
+                  cargar el informe de junio). Este campo no afecta la lista de 
+                  "Nuevos Publicadores" del Informe S-1, que sigue usando la fecha de 
+                  "En congregación desde".
+                </p>
               </div>
             </div>
           )}

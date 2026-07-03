@@ -1,4 +1,4 @@
-// VistaCapturaInformes.jsx - CON FILTRO en_congregacion_desde
+// VistaCapturaInformes.jsx - CON FILTRO en_congregacion_desde / informar_desde
 // Copiar a: src/components/VistaCapturaInformes.jsx (REEMPLAZAR)
 
 import { useState } from 'react'
@@ -15,13 +15,16 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
   const debeInformarEnMes = (publicador) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
     if (publicador.fecha_mudanza) return false
-    
-    const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+
+    // informar_desde tiene prioridad: permite habilitar la carga de un mes
+    // anterior a la fecha oficial de llegada (en_congregacion_desde), sin
+    // afectar el cálculo de "Nuevos Publicadores" en el Informe S-1.
+    const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
     if (!fechaBase) return true
-    
+
     const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
     const fechaInicio = new Date(fechaBase)
-    
+
     return fechaMes >= fechaInicio
   }
 

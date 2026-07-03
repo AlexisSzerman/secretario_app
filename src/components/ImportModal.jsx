@@ -100,6 +100,35 @@ export default function ImportModal({ onClose, onSuccess, existingPublicadores =
           }
         }
 
+        // Mapear "informar desde" (opcional) - NUEVO
+        // Permite que el Excel traiga una fecha de habilitación distinta a
+        // en_congregacion_desde para casos de transición de mes.
+        let informarDesde = null
+        const informarDesdeRaw = row['Informar Desde'] || row['Informar desde'] || 
+                                row.informarDesde || row['informar desde'] || row.InformarDesde
+        if (informarDesdeRaw) {
+          try {
+            if (typeof informarDesdeRaw === 'string') {
+              const date = new Date(informarDesdeRaw)
+              if (!isNaN(date.getTime())) {
+                informarDesde = date.toISOString().split('T')[0]
+              }
+            } else if (typeof informarDesdeRaw === 'number') {
+              const date = new Date((informarDesdeRaw - 25569) * 86400 * 1000)
+              if (!isNaN(date.getTime())) {
+                informarDesde = date.toISOString().split('T')[0]
+              }
+            } else {
+              const date = new Date(informarDesdeRaw)
+              if (!isNaN(date.getTime())) {
+                informarDesde = date.toISOString().split('T')[0]
+              }
+            }
+          } catch (e) {
+            console.log(`Error procesando informar_desde para ${apellido}, ${nombre}:`, e)
+          }
+        }
+
         const publicador = {
           nombre: nombre,
           apellido: apellido,
@@ -113,7 +142,8 @@ export default function ImportModal({ onClose, onSuccess, existingPublicadores =
           direccion: (row.Dirección || row.Direccion || row.direccion || row.DIRECCION || '').toString().trim(),
           bautizado: bautizado,
           fecha_bautismo: fechaBautismo,
-          en_congregacion_desde: null // ← AGREGADO: consistente con EditPublicadorModal
+          en_congregacion_desde: null, // ← consistente con EditPublicadorModal
+          informar_desde: informarDesde // ← NUEVO: opcional, null si no viene en el Excel
         }
 
         // DEBUG - Descomentar para ver qué se está procesando
@@ -237,6 +267,7 @@ export default function ImportModal({ onClose, onSuccess, existingPublicadores =
                 <li>✅ <strong>Fecha Bautismo</strong> (cualquier formato)</li>
                 <li>✅ <strong>Responsabilidad</strong> (Anciano, Siervo Ministerial)</li>
                 <li>✅ <strong>Dirección, Teléfono, Email</strong> (opcionales)</li>
+                <li>✅ <strong>Informar Desde</strong> (opcional, cualquier formato)</li>
               </ul>
             </div>
           </div>

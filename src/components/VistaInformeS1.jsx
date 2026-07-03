@@ -51,8 +51,11 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   // FUNCIÓN HELPER: Verifica si debía informar en este mes
   const debiaInformarEnMes = (publicador) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
-    
-    const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+
+    // informar_desde tiene prioridad sobre en_congregacion_desde para el
+    // cálculo de elegibilidad (permite habilitar un mes de transición sin
+    // afectar el cálculo de "Nuevos Publicadores" más abajo).
+    const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
     const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
     
     if (fechaBase) {
