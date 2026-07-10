@@ -117,9 +117,6 @@ export default function Informes({ publicadores, onReload }) {
                   </span>
                 )}
               </div>
-              <p className="text-sm text-slate-600 mt-1">
-                {informes.length} de {publicadoresActivos.length} informes • {porcentaje}%
-              </p>
             </div>
             
             <button 

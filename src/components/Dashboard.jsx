@@ -1,6 +1,3 @@
-// Dashboard.jsx - OPTIMIZADO: Queries Paralelizadas + Loading Descriptivo
-// Copiar a: src/components/Dashboard.jsx (REEMPLAZAR)
-
 import { useState, useEffect } from 'react'
 import { Users, CheckCircle, UserX, AlertCircle, Star, Droplet, MessageCircle, Calendar } from 'lucide-react'
 import { db } from '../lib/supabase'

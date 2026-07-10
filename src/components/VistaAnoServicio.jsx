@@ -17,7 +17,10 @@ export default function VistaAnoServicio({ publicadores }) {
   const debiaInformarEnMes = (publicador, mes, ano) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
     
-    const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+    // informar_desde tiene prioridad: permite contar meses anteriores a la
+    // fecha oficial de llegada (en_congregacion_desde) cuando se cargó ese
+    // campo para habilitar un mes de transición.
+    const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
     if (!fechaBase) return true
     
     const fechaMes = new Date(ano, mes - 1, 1)

@@ -12,6 +12,7 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   
   // Listas dinámicas
   const [publicadoresAlerta, setPublicadoresAlerta] = useState([])
+  const [publicadoresParaInactivar, setPublicadoresParaInactivar] = useState([])
 
   // Cargar asistencia al montar
   useEffect(() => {
@@ -48,27 +49,31 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     }
   }
 
-  // FUNCIÓN HELPER: Verifica si debía informar en este mes
-  const debiaInformarEnMes = (publicador) => {
+  // FUNCIÓN HELPER: Verifica si debía informar en un mes específico
+  // (recibe mes/año explícitos para poder reutilizarla al revisar meses
+  // anteriores, no solo el mes actualmente seleccionado)
+  const debiaInformarEnMesEspecifico = (publicador, mes, ano) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
 
-    // informar_desde tiene prioridad sobre en_congregacion_desde para el
-    // cálculo de elegibilidad (permite habilitar un mes de transición sin
-    // afectar el cálculo de "Nuevos Publicadores" más abajo).
     const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
-    const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
-    
+    const fechaMes = new Date(ano, mes - 1, 1)
+
     if (fechaBase) {
       const fechaInicio = new Date(fechaBase)
       if (fechaMes < fechaInicio) return false
     }
-    
+
     if (publicador.fecha_mudanza) {
       const fechaSalida = new Date(publicador.fecha_mudanza)
       if (fechaMes > fechaSalida) return false
     }
-    
+
     return true
+  }
+
+  // Versión para el mes actualmente seleccionado en pantalla
+  const debiaInformarEnMes = (publicador) => {
+    return debiaInformarEnMesEspecifico(publicador, mesActual.mes, mesActual.ano)
   }
 
   const publicadoresActivos = publicadores.filter(p => 
@@ -155,6 +160,7 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
 
   const calcularAlerta = async () => {
     const alerta = []
+    const paraInactivar = []
 
     // Helper para retroceder N meses correctamente
     const getMesAno = (offset) => {
@@ -166,25 +172,57 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
 
     const mesAno1 = getMesAno(-1)
     const mesAno2 = getMesAno(-2)
+    const mesAno3 = getMesAno(-3)
+    const mesAno4 = getMesAno(-4)
+    const mesAno5 = getMesAno(-5)
 
     try {
-      // Solo 2 queries para todos los publicadores
-      const [informesMes1, informesMes2] = await Promise.all([
+      // Una sola consulta por mes para todos los publicadores (6 meses en total)
+      const [informesMes1, informesMes2, informesMes3, informesMes4, informesMes5] = await Promise.all([
         db.getInformesByMesAno(mesAno1.mes, mesAno1.ano),
-        db.getInformesByMesAno(mesAno2.mes, mesAno2.ano)
+        db.getInformesByMesAno(mesAno2.mes, mesAno2.ano),
+        db.getInformesByMesAno(mesAno3.mes, mesAno3.ano),
+        db.getInformesByMesAno(mesAno4.mes, mesAno4.ano),
+        db.getInformesByMesAno(mesAno5.mes, mesAno5.ano)
       ])
 
       for (const pub of publicadoresDeberian) {
+        // Si en alguno de los meses evaluados todavía no correspondía que
+        // informara (por ejemplo, recién llegó a la congregación), no se lo
+        // puede considerar "irregular" ni "para inactivar" — todavía no
+        // tiene suficiente historial.
+        const debio0 = debiaInformarEnMesEspecifico(pub, mesActual.mes, mesActual.ano)
+        const debio1 = debiaInformarEnMesEspecifico(pub, mesAno1.mes, mesAno1.ano)
+        const debio2 = debiaInformarEnMesEspecifico(pub, mesAno2.mes, mesAno2.ano)
+        const debio3 = debiaInformarEnMesEspecifico(pub, mesAno3.mes, mesAno3.ano)
+        const debio4 = debiaInformarEnMesEspecifico(pub, mesAno4.mes, mesAno4.ano)
+        const debio5 = debiaInformarEnMesEspecifico(pub, mesAno5.mes, mesAno5.ano)
+
         const inf0 = informes.find(i => i.publicador_id === pub.id)
         const inf1 = informesMes1.find(i => i.publicador_id === pub.id)
         const inf2 = informesMes2.find(i => i.publicador_id === pub.id)
+        const inf3 = informesMes3.find(i => i.publicador_id === pub.id)
+        const inf4 = informesMes4.find(i => i.publicador_id === pub.id)
+        const inf5 = informesMes5.find(i => i.publicador_id === pub.id)
 
         const noParticipo0 = !inf0 || !inf0.participo
         const noParticipo1 = !inf1 || !inf1.participo
         const noParticipo2 = !inf2 || !inf2.participo
+        const noParticipo3 = !inf3 || !inf3.participo
+        const noParticipo4 = !inf4 || !inf4.participo
+        const noParticipo5 = !inf5 || !inf5.participo
 
-        if (noParticipo0 && noParticipo1 && noParticipo2) {
+        // Irregular: 3 meses consecutivos sin informar
+        if (debio0 && debio1 && debio2 && noParticipo0 && noParticipo1 && noParticipo2) {
           alerta.push(pub)
+        }
+
+        // Para inactivar: 6 meses consecutivos sin informar
+        if (
+          debio0 && debio1 && debio2 && debio3 && debio4 && debio5 &&
+          noParticipo0 && noParticipo1 && noParticipo2 && noParticipo3 && noParticipo4 && noParticipo5
+        ) {
+          paraInactivar.push(pub)
         }
       }
     } catch (error) {
@@ -192,6 +230,7 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     }
 
     setPublicadoresAlerta(alerta)
+    setPublicadoresParaInactivar(paraInactivar)
   }
 
   // === COPIAR AL PORTAPAPELES ===
@@ -294,6 +333,8 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
       allLists.push({ title: 'NO PARTICIPARON',        items: noParticiparon,              bg: [241,245,249], hd: [71,85,105] })
     if (publicadoresAlerta.length > 0)
       allLists.push({ title: 'IRREGULARES',            items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
+    if (publicadoresParaInactivar.length > 0)
+      allLists.push({ title: 'PARA INACTIVAR (6 MESES)', items: publicadoresParaInactivar, bg: [253,164,175], hd: [136,19,55] })
 
     const lColW = (UW - 5) / 2
     const lc = [M, M + lColW + 5]
@@ -695,6 +736,26 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {publicadoresAlerta.map(pub => (
+              <div key={pub.id} className="text-sm text-slate-700">
+                • {pub.apellido}, {pub.nombre}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Para inactivar: 6 meses consecutivos sin informar */}
+      {publicadoresParaInactivar.length > 0 && (
+        <div className="card p-6 bg-rose-100 border-rose-300">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <AlertCircle className="text-rose-700" size={20} />
+            Para Inactivar ({publicadoresParaInactivar.length})
+          </h4>
+          <p className="text-sm text-rose-800 mb-3 font-medium">
+            6 meses consecutivos sin informar — según las políticas de la congregación, pasan a ser inactivos
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {publicadoresParaInactivar.map(pub => (
               <div key={pub.id} className="text-sm text-slate-700">
                 • {pub.apellido}, {pub.nombre}
               </div>

@@ -1,6 +1,3 @@
-// ImportInformesModal.jsx - LÓGICA DE PRECURSOR CORREGIDA
-// Copiar a: src/components/ImportInformesModal.jsx (REEMPLAZAR)
-
 import { useState } from 'react'
 import { Upload, X, CheckCircle, AlertCircle, UserCheck, UserX, Info } from 'lucide-react'
 import * as XLSX from 'xlsx'
