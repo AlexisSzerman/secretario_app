@@ -44,7 +44,7 @@ const debiaInformarEnMes = (publicador, mes, ano) => {
     if (primerDiaMes >= new Date(publicador.fecha_mudanza)) return false
   }
 
-  const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+  const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
   
   if (!fechaBase) {
     return true
@@ -66,10 +66,15 @@ const debiaInformarEnMes = (publicador, mes, ano) => {
       setLoadingMessage('Calculando estadísticas básicas...')
       setLoadingProgress(10)
       
-      const inactivos = publicadores.filter(p => p.tipo_servicio === 'Inactivo')
-      const activos = publicadores.filter(p => p.tipo_servicio !== 'Inactivo')
-      const precursoresRegulares = publicadores.filter(p => p.tipo_servicio === 'Precursor Regular')
-      const bautizados = publicadores.filter(p => p.bautizado && p.fecha_bautismo)
+      // Excluir mudados de TODAS las estadísticas: un publicador que se mudó
+      // ya no forma parte de esta congregación, aunque su registro se
+      // conserve en la base de datos para el historial.
+      const publicadoresVigentes = publicadores.filter(p => !p.fecha_mudanza)
+
+      const inactivos = publicadoresVigentes.filter(p => p.tipo_servicio === 'Inactivo')
+      const activos = publicadoresVigentes.filter(p => p.tipo_servicio !== 'Inactivo')
+      const precursoresRegulares = publicadoresVigentes.filter(p => p.tipo_servicio === 'Precursor Regular')
+      const bautizados = publicadoresVigentes.filter(p => p.bautizado && p.fecha_bautismo)
 
       // PASO 2: Cargar TODOS los informes en paralelo (OPTIMIZACIÓN CLAVE)
       setLoadingMessage(`Cargando informes de ${activos.length} publicadores...`)
@@ -147,7 +152,7 @@ const debiaInformarEnMes = (publicador, mes, ano) => {
 
       // PASO 4: Stats finales y aniversarios
       setStats({
-        total: publicadores.length,
+        total: publicadoresVigentes.length,
         activos: activos.length,
         inactivos: inactivos.length,
         irregulares: irregularesDetectados.length,
