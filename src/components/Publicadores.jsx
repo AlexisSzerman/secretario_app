@@ -1,8 +1,8 @@
-// Publicadores.jsx - CON BADGES DE RESPONSABILIDAD
+// Publicadores.jsx - CON BADGES DE RESPONSABILIDAD + TOGGLE INACTIVOS
 // Copiar a: src/components/Publicadores.jsx (REEMPLAZAR)
 
 import { useState } from 'react'
-import { Search, Upload, Star, Phone, Droplet, Edit2, Plus, Shield, Award, FileText } from 'lucide-react'
+import { Search, Upload, Star, Phone, Droplet, Edit2, Plus, Shield, Award, FileText, EyeOff, Eye } from 'lucide-react'
 import { formatearFecha } from '../utils/dateUtils'
 import ImportModal from './ImportModal'
 import EditPublicadorModal from './EditPublicadorModal'
@@ -17,13 +17,19 @@ export default function Publicadores({ publicadores, onReload }) {
   const [publicadorEditar, setPublicadorEditar] = useState(null)
   const [vistaActual, setVistaActual] = useState('activos') // 'activos' o 'mudados'
   const [showS21Modal, setShowS21Modal] = useState(false)
+  const [mostrarInactivos, setMostrarInactivos] = useState(true) // NUEVO: toggle inactivos
 
   const grupos = ['TODOS', ...new Set(publicadores.map(p => p.grupo).filter(Boolean).sort())]
 
-  // NUEVO: Filtrar publicadores mudados
+  // Publicadores mudados o inactivos (van a la pestaña combinada)
   const publicadoresActivos = publicadores.filter(p => !p.fecha_mudanza)
 
-  const publicadoresFiltrados = publicadoresActivos.filter(p => {
+  // NUEVO: aplicar el toggle de mostrar/ocultar inactivos
+  const publicadoresVisibles = mostrarInactivos
+    ? publicadoresActivos
+    : publicadoresActivos.filter(p => p.tipo_servicio !== 'Inactivo')
+
+  const publicadoresFiltrados = publicadoresVisibles.filter(p => {
     const matchNombre = !filtro || 
       `${p.nombre} ${p.apellido}`.toLowerCase().includes(filtro.toLowerCase())
     const matchGrupo = grupoFiltro === 'TODOS' || p.grupo === grupoFiltro
@@ -52,6 +58,11 @@ export default function Publicadores({ publicadores, onReload }) {
     })
   })
 
+  // NUEVO: conteo combinado para el botón de la pestaña Mudados/Inactivos
+  const totalMudadosInactivos = publicadores.filter(
+    p => p.fecha_mudanza || p.tipo_servicio === 'Inactivo'
+  ).length
+
   const handleEdit = (publicador) => {
     setPublicadorEditar(publicador)
     setShowEditModal(true)
@@ -71,8 +82,8 @@ export default function Publicadores({ publicadores, onReload }) {
             <h2 className="text-xl font-semibold text-slate-900">Publicadores</h2>
             <p className="text-slate-600 text-sm mt-1">
               {vistaActual === 'activos' 
-                ? `${publicadoresActivos.length} publicadores activos`
-                : `${publicadores.filter(p => p.fecha_mudanza).length} publicadores mudados`
+                ? `${publicadoresVisibles.length} publicadores activos`
+                : `${totalMudadosInactivos} publicadores mudados/inactivos`
               }
             </p>
           </div>
@@ -98,7 +109,7 @@ export default function Publicadores({ publicadores, onReload }) {
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-              Mudados
+              Mudados/Inactivos
             </button>
           </div>
 
@@ -152,6 +163,21 @@ export default function Publicadores({ publicadores, onReload }) {
                 <option key={g} value={g}>{g}</option>
               ))}
             </select>
+
+            {/* NUEVO: Toggle mostrar/ocultar inactivos */}
+            <button
+              type="button"
+              onClick={() => setMostrarInactivos(prev => !prev)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 whitespace-nowrap border ${
+                mostrarInactivos
+                  ? 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={mostrarInactivos ? 'Ocultar inactivos' : 'Mostrar inactivos'}
+            >
+              {mostrarInactivos ? <Eye size={16} /> : <EyeOff size={16} />}
+              {mostrarInactivos ? 'Ocultando inactivos: NO' : 'Ocultando inactivos: SÍ'}
+            </button>
           </div>
         )}
       </div>
@@ -190,7 +216,7 @@ export default function Publicadores({ publicadores, onReload }) {
                       </span>
                     )}
                     
-                    {/* Badge de Responsabilidad - NUEVO */}
+                    {/* Badge de Responsabilidad */}
                     {p.responsabilidad === 'Anciano' && (
                       <span className="flex items-center gap-1 text-purple-700">
                         <Shield size={14} className="text-purple-600" />
@@ -236,7 +262,7 @@ export default function Publicadores({ publicadores, onReload }) {
         </>
       )}
 
-      {/* Vista Mudados */}
+      {/* Vista Mudados/Inactivos */}
       {vistaActual === 'mudados' && (
         <VistaMudados 
           publicadores={publicadores}
