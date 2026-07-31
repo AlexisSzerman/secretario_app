@@ -64,7 +64,6 @@ export default function VistaMudados({ publicadores, onReload }) {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-              <Home className="text-orange-600" size={24} />
               Publicadores Mudados/Inactivos
             </h2>
             <p className="text-slate-600 text-sm mt-1">

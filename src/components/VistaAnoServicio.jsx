@@ -66,10 +66,11 @@ const loadAnalisis = async () => {
         .map(m => `${m.mes}-${m.ano}`)
     )
 
-    const precursores = publicadores.filter(p => 
-      p.tipo_servicio === 'Precursor Regular' && 
-      p.tipo_servicio !== 'Inactivo'
-    )
+const precursores = publicadores.filter(p =>
+  p.tipo_servicio === 'Precursor Regular' &&
+  p.tipo_servicio !== 'Inactivo' &&
+  !p.fecha_mudanza
+)
 
     setLoadingMessage('Cargando informes...')
 
