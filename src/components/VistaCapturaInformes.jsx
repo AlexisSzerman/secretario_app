@@ -294,16 +294,21 @@ function FilaPublicador({ publicador, informe, mesActual, isEditing, onEdit, onC
           </div>
         )}
 
-        <div className="mb-3">
-          <label className="block text-xs text-slate-600 mb-1">Notas</label>
-          <input
-            type="text"
-            value={datos.notas}
-            onChange={(e) => setDatos({...datos, notas: e.target.value})}
-            placeholder="Comentarios opcionales..."
-            className="custom-input text-sm"
-          />
-        </div>
+<div className="mb-3">
+  <label className="block text-xs text-slate-600 mb-1">Notas</label>
+  <input
+    type="text"
+    value={datos.notas}
+    onChange={(e) => setDatos({ ...datos, notas: e.target.value })}
+    placeholder="Comentarios opcionales..."
+    maxLength={40}
+    className="custom-input text-sm"
+  />
+
+  <div className="text-xs text-slate-500 mt-1 text-end">
+    {datos.notas.length}/40
+  </div>
+</div>
 
         <div className="flex gap-2 justify-end">
           <button onClick={onCancel} className="btn-secondary text-sm">

@@ -141,7 +141,8 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
       part: 47,
       cursos: 71.5,
       aux: 97,
-      horas: 127
+      horas: 127,
+      obs: 147 
     }
 
     let y = 74
@@ -175,6 +176,15 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
         totalHoras += informe.horas
       }
 
+      // Observaciones (nota del informe de este mes)
+      if (informe?.notas && informe.notas.trim()) {
+        doc.setFontSize(9)
+        // Ancho acotado para que la nota no invada la columna siguiente ni se salga de la hoja
+        const notaCorta = doc.splitTextToSize(informe.notas.trim(), 75)
+        doc.text(notaCorta[0], col.obs, y)  // solo la primera línea, el renglón es angosto
+        doc.setFontSize(7)
+      }
+
       y += 7.2 
     })
 
@@ -182,13 +192,10 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
     // TOTALES
     // ======================
 
-    if (totalCursos > 0) {
-      doc.text(String(totalCursos), col.cursos, y + 4.5, { align: 'center' })
-    }
-
-    if (totalHoras > 0) {
-      doc.text(String(totalHoras), col.horas, y + 4.5, { align: 'center' })
-    }
+if (totalHoras > 0) {
+  doc.setFontSize(10)
+  doc.text(String(totalHoras), col.horas, y - 1, { align: 'center' })
+}
 
     return doc
   }
