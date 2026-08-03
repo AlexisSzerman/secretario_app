@@ -53,7 +53,7 @@ export default function Informes({ publicadores, onReload }) {
     })
   }
 
-  const publicadoresActivos = publicadores.filter(p => {
+const publicadoresActivos = publicadores.filter(p => {
     // Excluir inactivos
     if (p.tipo_servicio === 'Inactivo') return false
     
@@ -63,9 +63,19 @@ export default function Informes({ publicadores, onReload }) {
       const fechaMesActual = new Date(mesActual.ano, mesActual.mes - 1, 1)
       if (fechaSalida < fechaMesActual) return false
     }
+
+    // Excluir a quienes todavía no correspondía que informaran este mes
+    // (recién llegados a la congregación, o con fecha de inicio de informe posterior)
+    const fechaBase = p.informar_desde || p.en_congregacion_desde || p.activo_desde
+    if (fechaBase) {
+      const fechaMesActual = new Date(mesActual.ano, mesActual.mes - 1, 1)
+      const fechaInicio = new Date(fechaBase)
+      if (fechaMesActual < fechaInicio) return false
+    }
     
     return true
   })
+  
   const esDisponible = esMesVencido(mesActual.mes, mesActual.ano)
   const esMesFuturo = !esDisponible
   const porcentaje = publicadoresActivos.length > 0

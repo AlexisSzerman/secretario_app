@@ -49,37 +49,31 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
     }
   }
 
-  // FUNCIÓN HELPER: Verifica si debía informar en un mes específico
-  // (recibe mes/año explícitos para poder reutilizarla al revisar meses
-  // anteriores, no solo el mes actualmente seleccionado)
+// FUNCIÓN HELPER: Verifica si debía informar en un mes específico
   const debiaInformarEnMesEspecifico = (publicador, mes, ano) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
+    if (publicador.fecha_mudanza) return false  // igual que Publicadores/Informes: mudado = fuera, sin importar el mes
 
     const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
-    const fechaMes = new Date(ano, mes - 1, 1)
+    if (!fechaBase) return true
 
-    if (fechaBase) {
-      const fechaInicio = new Date(fechaBase)
-      if (fechaMes < fechaInicio) return false
-    }
+    // Comparación por año/mes sin pasar por Date(), para evitar
+    // el corrimiento de huso horario (UTC-3)
+    const [yb, mb] = fechaBase.split('-').map(Number)
+    const fechaInicioNum = yb * 12 + (mb - 1)
+    const mesNum = ano * 12 + (mes - 1)
 
-    if (publicador.fecha_mudanza) {
-      const fechaSalida = new Date(publicador.fecha_mudanza)
-      if (fechaMes > fechaSalida) return false
-    }
-
-    return true
+    return mesNum >= fechaInicioNum
   }
-
   // Versión para el mes actualmente seleccionado en pantalla
   const debiaInformarEnMes = (publicador) => {
     return debiaInformarEnMesEspecifico(publicador, mesActual.mes, mesActual.ano)
   }
 
-  const publicadoresActivos = publicadores.filter(p => 
-    p.tipo_servicio !== 'Inactivo' &&
-    (!p.fecha_mudanza || new Date(p.fecha_mudanza) >= new Date(mesActual.ano, mesActual.mes - 1, 1))
+const publicadoresActivos = publicadores.filter(p => 
+    p.tipo_servicio !== 'Inactivo' && !p.fecha_mudanza
   )
+  
   const publicadoresDeberian = publicadores.filter(p => debiaInformarEnMes(p))
 
   // Separar informes por tipo
@@ -105,7 +99,7 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
 
   // Estadísticas para S-1
   const stats = {
-    totalPublicadoresActivos: publicadoresActivos.length,
+    totalPublicadoresActivos: publicadoresDeberian.length,
     
     publicadores: {
       informes: informesPublicadores.length,

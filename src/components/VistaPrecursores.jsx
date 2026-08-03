@@ -7,9 +7,9 @@ import { ArrowUpDown } from 'lucide-react'
 export default function VistaPrecursores({ publicadores, informes, mesActual }) {
   const [ordenarPorHoras, setOrdenarPorHoras] = useState(true)
 
-  const precursores = publicadores.filter(p => 
+const precursores = publicadores.filter(p => 
     (p.tipo_servicio === 'Precursor Regular' || p.tipo_servicio === 'Precursor Especial') &&
-    p.tipo_servicio !== 'Inactivo'
+    !p.fecha_mudanza
   )
 
   const analisis = precursores.map(p => {

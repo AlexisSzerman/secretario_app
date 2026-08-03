@@ -11,10 +11,10 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
   const [busqueda, setBusqueda] = useState('')
   const [editingId, setEditingId] = useState(null)
 
-  // FUNCIÓN HELPER: Verifica si debe informar en este mes
+// FUNCIÓN HELPER: Verifica si debe informar en este mes
   const debeInformarEnMes = (publicador) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
-    if (publicador.fecha_mudanza) return false
+    if (publicador.fecha_mudanza) return false   // igual que "activos" en Publicadores.jsx
 
     // informar_desde tiene prioridad: permite habilitar la carga de un mes
     // anterior a la fecha oficial de llegada (en_congregacion_desde), sin
@@ -22,14 +22,18 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
     const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
     if (!fechaBase) return true
 
-    const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
-    const fechaInicio = new Date(fechaBase)
+    const [yb, mb] = fechaBase.split('-').map(Number)
+    const aunNoLlegaba = yb > mesActual.ano || (yb === mesActual.ano && mb > mesActual.mes)
 
-    return fechaMes >= fechaInicio
+    return !aunNoLlegaba
   }
 
   // FILTRAR: Solo publicadores que DEBEN informar este mes
   const publicadoresDeberian = publicadores.filter(p => debeInformarEnMes(p))
+
+  // TEMPORAL - Debug: ver la lista completa que cuenta como "Todos"
+console.log('=== DEBEN INFORMAR (' + publicadoresDeberian.length + ') ===')
+console.log(publicadoresDeberian.map(p => `${p.apellido}, ${p.nombre}`).sort().join('\n'))
   
   const grupos = ['TODOS', ...new Set(publicadoresDeberian.map(p => p.grupo).filter(Boolean).sort())]
 

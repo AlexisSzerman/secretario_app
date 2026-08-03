@@ -1,6 +1,3 @@
-// Publicadores.jsx - CON BADGES DE RESPONSABILIDAD + TOGGLE INACTIVOS
-// Copiar a: src/components/Publicadores.jsx (REEMPLAZAR)
-
 import { useState } from 'react'
 import { Search, Upload, Star, Phone, Droplet, Edit2, Plus, Shield, Award, FileText, EyeOff, Eye } from 'lucide-react'
 import { formatearFecha } from '../utils/dateUtils'
@@ -23,6 +20,11 @@ export default function Publicadores({ publicadores, onReload }) {
 
   // Publicadores mudados o inactivos (van a la pestaña combinada)
   const publicadoresActivos = publicadores.filter(p => !p.fecha_mudanza)
+
+  // TEMPORAL - Debug: ver la lista de "activos reales" (sin inactivos, sin mudados)
+const activosReales = publicadoresActivos.filter(p => p.tipo_servicio !== 'Inactivo')
+console.log('=== ACTIVOS REALES (' + activosReales.length + ') ===')
+console.log(activosReales.map(p => `${p.apellido}, ${p.nombre}`).sort().join('\n'))
 
   // NUEVO: aplicar el toggle de mostrar/ocultar inactivos
   const publicadoresVisibles = mostrarInactivos
@@ -82,7 +84,7 @@ export default function Publicadores({ publicadores, onReload }) {
             <h2 className="text-xl font-semibold text-slate-900">Publicadores</h2>
             <p className="text-slate-600 text-sm mt-1">
               {vistaActual === 'activos' 
-                ? `${publicadoresVisibles.length} publicadores activos`
+                ? `${publicadoresVisibles.length} publicadores totales`
                 : `${totalMudadosInactivos} publicadores mudados/inactivos`
               }
             </p>

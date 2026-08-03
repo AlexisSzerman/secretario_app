@@ -1,17 +1,21 @@
 import { Users, CheckCircle, BookOpen, Clock, Star } from 'lucide-react'
 
 export default function VistaEstadisticas({ publicadores, informes, mesActual }) {
-  // FUNCIÓN HELPER: Verifica si debe informar en este mes
+// FUNCIÓN HELPER: Verifica si debe informar en este mes
   const debeInformarEnMes = (publicador) => {
     if (publicador.tipo_servicio === 'Inactivo') return false
-    
-    const fechaBase = publicador.en_congregacion_desde || publicador.activo_desde
+    if (publicador.fecha_mudanza) return false
+
+    const fechaBase = publicador.informar_desde || publicador.en_congregacion_desde || publicador.activo_desde
     if (!fechaBase) return true
-    
-    const fechaMes = new Date(mesActual.ano, mesActual.mes - 1, 1)
-    const fechaInicio = new Date(fechaBase)
-    
-    return fechaMes >= fechaInicio
+
+    // Comparación por año/mes sin pasar por Date(), para evitar
+    // el corrimiento de huso horario (UTC-3)
+    const [yb, mb] = fechaBase.split('-').map(Number)
+    const fechaInicioNum = yb * 12 + (mb - 1)
+    const mesNum = mesActual.ano * 12 + (mesActual.mes - 1)
+
+    return mesNum >= fechaInicioNum
   }
 
   // NUEVA FUNCIÓN: Verifica si era precursor en el mes específico

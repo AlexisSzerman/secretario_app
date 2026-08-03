@@ -150,6 +150,34 @@ export const db = {
     if (error) throw error
   },
 
+  // ============ MAPEO DE NOMBRES (memoria de importaciones) ============
+
+  async getMapeoNombres() {
+    const { data, error } = await supabase
+      .from('mapeo_nombres_excel')
+      .select('*')
+
+    if (error) throw error
+    return data
+  },
+
+  async saveMapeoNombre(nombreExcel, apellidoExcel, publicadorId) {
+    const { data, error } = await supabase
+      .from('mapeo_nombres_excel')
+      .upsert(
+        {
+          nombre_excel: nombreExcel.toLowerCase().trim(),
+          apellido_excel: apellidoExcel.toLowerCase().trim(),
+          publicador_id: publicadorId
+        },
+        { onConflict: 'nombre_excel,apellido_excel' }
+      )
+      .select()
+
+    if (error) throw error
+    return data
+  },
+
   // ============ ESTADÍSTICAS ============
   
   async getEstadisticasMes(mes, ano) {
@@ -322,4 +350,6 @@ async toggleDashboard(id, mostrar) {
   return data
 },
 }
+
+
 

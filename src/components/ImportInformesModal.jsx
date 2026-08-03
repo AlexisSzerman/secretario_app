@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, X, CheckCircle, AlertCircle, UserCheck, UserX, Info } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { db } from '../lib/supabase'
@@ -9,6 +9,26 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
   const [step, setStep] = useState('upload') // 'upload', 'review', 'result'
   const [informesParseados, setInformesParseados] = useState([])
   const [result, setResult] = useState(null)
+  const [mapeo, setMapeo] = useState({}) // clave: "nombre|apellido" normalizado -> publicador_id
+
+  // Cargar la memoria de emparejamientos al abrir el modal
+  useEffect(() => {
+    cargarMapeo()
+  }, [])
+
+  const cargarMapeo = async () => {
+    try {
+      const data = await db.getMapeoNombres()
+      const mapa = {}
+      data.forEach(m => {
+        mapa[`${m.nombre_excel}|${m.apellido_excel}`] = m.publicador_id
+      })
+      setMapeo(mapa)
+    } catch (error) {
+      console.error('Error cargando mapeo de nombres:', error)
+      // No es crítico: si falla, simplemente no hay memoria y se usa el matching normal
+    }
+  }
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0]
@@ -49,8 +69,10 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
       const nombreExcel = (row.Nombre || '').toString().trim()
       const apellidoExcel = (row.Apellido || '').toString().trim()
       
-      // Intentar match automático
-      const match = encontrarPublicador(nombreExcel, apellidoExcel)
+      // Intentar match: primero por memoria (importaciones anteriores), después fuzzy
+      const resultadoMatch = encontrarPublicador(nombreExcel, apellidoExcel)
+      const match = resultadoMatch.publicador
+      const matchPorMemoria = resultadoMatch.porMemoria
 
       // Parsear mes
       const mesTexto = (row.Mes || '').toString().toLowerCase()
@@ -76,6 +98,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
         apellidoExcel,
         publicador: match,
         matchAutomatico: !!match,
+        matchPorMemoria, // true si vino de una importación anterior ya confirmada
         mes,
         ano: row.Año || row.ano || mesActual.ano,
         participo: ['si', 'sí', 'yes', 'x', '1'].includes((row.Participó || '').toString().toLowerCase().trim()),
@@ -93,12 +116,21 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
     const nombreClean = nombre.toLowerCase().trim()
     const apellidoClean = apellido.toLowerCase().trim()
 
+    // 0. Match por memoria: ya emparejamos este nombre en una importación anterior
+    const claveMapeo = `${nombreClean}|${apellidoClean}`
+    if (mapeo[claveMapeo]) {
+      const publicadorMemoria = publicadores.find(p => p.id === mapeo[claveMapeo])
+      if (publicadorMemoria) {
+        return { publicador: publicadorMemoria, porMemoria: true }
+      }
+    }
+
     // 1. Match exacto
     let match = publicadores.find(p => 
       p.nombre.toLowerCase().trim() === nombreClean && 
       p.apellido.toLowerCase().trim() === apellidoClean
     )
-    if (match) return match
+    if (match) return { publicador: match, porMemoria: false }
 
     // 2. Match por apellido + primera palabra del nombre
     const primerNombre = nombreClean.split(' ')[0]
@@ -106,13 +138,13 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
       p.apellido.toLowerCase().trim() === apellidoClean &&
       p.nombre.toLowerCase().split(' ')[0] === primerNombre
     )
-    if (match) return match
+    if (match) return { publicador: match, porMemoria: false }
 
     // 3. Match solo por apellido (si es único)
     const matchesPorApellido = publicadores.filter(p => 
       p.apellido.toLowerCase().trim() === apellidoClean
     )
-    if (matchesPorApellido.length === 1) return matchesPorApellido[0]
+    if (matchesPorApellido.length === 1) return { publicador: matchesPorApellido[0], porMemoria: false }
 
     // 4. Match aproximado (contiene)
     match = publicadores.find(p => {
@@ -120,9 +152,9 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
       const apellidoPub = p.apellido.toLowerCase().trim()
       return apellidoPub.includes(apellidoClean) && nombrePub.includes(primerNombre)
     })
-    if (match) return match
+    if (match) return { publicador: match, porMemoria: false }
 
-    return null
+    return { publicador: null, porMemoria: false }
   }
 
   const handlePublicadorChange = (informeId, publicadorId) => {
@@ -141,6 +173,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
           ...inf,
           publicador,
           matchAutomatico: false,
+          matchPorMemoria: false,
           esPrecursorRegular,
           precursorAuxiliar
         }
@@ -187,6 +220,11 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
             await db.addInforme(informeData)
             guardados++
           }
+
+          // Guardar/reforzar el emparejamiento en la memoria, para que la
+          // próxima importación lo reconozca al instante (ya sea que haya
+          // venido de match automático, fuzzy o asignación manual)
+          await db.saveMapeoNombre(inf.nombreExcel, inf.apellidoExcel, inf.publicador.id)
         } catch (error) {
           console.error('Error guardando informe:', error)
           errores.push(`${inf.apellidoExcel}, ${inf.nombreExcel}: ${error.message}`)
@@ -215,6 +253,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
   }
 
   const matchAutomaticos = informesParseados.filter(i => i.matchAutomatico && i.publicador).length
+  const matchPorMemoria = informesParseados.filter(i => i.matchPorMemoria).length
   const sinMatch = informesParseados.filter(i => !i.publicador).length
   const asignadosManualmente = informesParseados.filter(i => !i.matchAutomatico && i.publicador).length
   const precursoresRegularesEnExcel = informesParseados.filter(i => i.esPrecursorRegular && i.marcaPrecursorExcel).length
@@ -229,7 +268,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
             </h2>
             {step === 'review' && (
               <p className="text-sm text-slate-600 mt-1">
-                {matchAutomaticos} automáticos • {asignadosManualmente} asignados • {sinMatch} sin asignar
+                {matchPorMemoria} ya conocidos • {matchAutomaticos - matchPorMemoria} automáticos • {asignadosManualmente} asignados • {sinMatch} sin asignar
               </p>
             )}
           </div>
@@ -286,13 +325,22 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
         {step === 'review' && (
           <div className="space-y-4">
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="card p-3 bg-teal-50 border-teal-200">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="text-teal-600" size={20} />
+                  <div>
+                    <div className="text-xs text-teal-700">Ya conocidos</div>
+                    <div className="text-lg font-semibold text-teal-900">{matchPorMemoria}</div>
+                  </div>
+                </div>
+              </div>
               <div className="card p-3 bg-emerald-50 border-emerald-200">
                 <div className="flex items-center gap-2">
                   <UserCheck className="text-emerald-600" size={20} />
                   <div>
                     <div className="text-xs text-emerald-700">Match automático</div>
-                    <div className="text-lg font-semibold text-emerald-900">{matchAutomaticos}</div>
+                    <div className="text-lg font-semibold text-emerald-900">{matchAutomaticos - matchPorMemoria}</div>
                   </div>
                 </div>
               </div>
@@ -336,7 +384,9 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
                   key={inf.id}
                   className={`p-3 rounded-lg border ${
                     inf.publicador
-                      ? inf.matchAutomatico
+                      ? inf.matchPorMemoria
+                        ? 'bg-teal-50 border-teal-200'
+                        : inf.matchAutomatico
                         ? 'bg-emerald-50 border-emerald-200'
                         : 'bg-blue-50 border-blue-200'
                       : 'bg-red-50 border-red-200'
@@ -368,7 +418,10 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
                       {inf.publicador ? (
                         <div className="flex items-center justify-between">
                           <div className="text-sm">
-                            {inf.matchAutomatico && (
+                            {inf.matchPorMemoria && (
+                              <span className="text-teal-700">✓ Conocido: </span>
+                            )}
+                            {inf.matchAutomatico && !inf.matchPorMemoria && (
                               <span className="text-emerald-700">✓ Auto: </span>
                             )}
                             <span className="font-medium text-slate-900">
