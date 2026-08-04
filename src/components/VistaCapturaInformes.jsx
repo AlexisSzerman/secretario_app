@@ -31,10 +31,6 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
   // FILTRAR: Solo publicadores que DEBEN informar este mes
   const publicadoresDeberian = publicadores.filter(p => debeInformarEnMes(p))
 
-  // TEMPORAL - Debug: ver la lista completa que cuenta como "Todos"
-console.log('=== DEBEN INFORMAR (' + publicadoresDeberian.length + ') ===')
-console.log(publicadoresDeberian.map(p => `${p.apellido}, ${p.nombre}`).sort().join('\n'))
-  
   const grupos = ['TODOS', ...new Set(publicadoresDeberian.map(p => p.grupo).filter(Boolean).sort())]
 
   const getInformePublicador = (publicadorId) => {

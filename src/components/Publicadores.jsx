@@ -21,11 +21,6 @@ export default function Publicadores({ publicadores, onReload }) {
   // Publicadores mudados o inactivos (van a la pestaña combinada)
   const publicadoresActivos = publicadores.filter(p => !p.fecha_mudanza)
 
-  // TEMPORAL - Debug: ver la lista de "activos reales" (sin inactivos, sin mudados)
-const activosReales = publicadoresActivos.filter(p => p.tipo_servicio !== 'Inactivo')
-console.log('=== ACTIVOS REALES (' + activosReales.length + ') ===')
-console.log(activosReales.map(p => `${p.apellido}, ${p.nombre}`).sort().join('\n'))
-
   // NUEVO: aplicar el toggle de mostrar/ocultar inactivos
   const publicadoresVisibles = mostrarInactivos
     ? publicadoresActivos
