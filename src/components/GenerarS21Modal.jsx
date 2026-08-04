@@ -12,11 +12,23 @@ export default function GenerarS21Modal({ publicadores, onClose }) {
   const [generando, setGenerando] = useState(false)
   const [progreso, setProgreso] = useState({ actual: 0, total: 0, etapa: '' })
 
-  const anoActual = getAnoServicioActual()
+const anoActual = getAnoServicioActual()
+
+  const construirAnoServicio = (offset) => {
+    const anoInicio = anoActual.inicio.ano - offset
+    const anoFin = anoInicio + 1
+    return {
+      inicio: { mes: 9, ano: anoInicio },
+      fin: { mes: 8, ano: anoFin },
+      nombre: `${anoInicio}-${anoFin}`,
+      label: `Septiembre ${anoInicio} - Agosto ${anoFin}`
+    }
+  }
+
   const anosDisponibles = [
     anoActual,
-    { nombre: `${parseInt(anoActual.nombre) - 1}`, label: `${parseInt(anoActual.nombre.split('-')[0]) - 1}-${parseInt(anoActual.nombre.split('-')[1]) - 1}` },
-    { nombre: `${parseInt(anoActual.nombre) - 2}`, label: `${parseInt(anoActual.nombre.split('-')[0]) - 2}-${parseInt(anoActual.nombre.split('-')[1]) - 2}` }
+    construirAnoServicio(1),
+    construirAnoServicio(2)
   ]
 
   const publicadoresActivos = publicadores.filter(p => 
