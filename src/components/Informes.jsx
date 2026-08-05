@@ -287,11 +287,12 @@ const publicadoresActivos = publicadores.filter(p => {
       )}
 
       {/* Modal de importación */}
-      {showImportModal && (
+{showImportModal && (
         <ImportInformesModal
           onClose={() => setShowImportModal(false)}
           publicadores={publicadores}
           mesActual={mesActual}
+          informesExistentes={informes}
           onImport={() => {
             setShowImportModal(false)
             loadInformes()

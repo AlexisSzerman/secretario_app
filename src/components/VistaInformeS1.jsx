@@ -121,10 +121,10 @@ const publicadoresActivos = publicadores.filter(p =>
 
   // === LISTAS ADICIONALES ===
 
-  // 1. Precursores auxiliares (con nombres)
+// 1. Precursores auxiliares (con nombres y horas)
   const precursoresAuxiliaresLista = informesPrecAux.map(inf => {
     const pub = publicadores.find(p => p.id === inf.publicador_id)
-    return pub
+    return pub ? { ...pub, horasAux: inf.horas || 0 } : null
   }).filter(Boolean)
 
   // 2. Nuevos publicadores (en_congregacion_desde = mes actual)
@@ -255,7 +255,7 @@ const publicadoresActivos = publicadores.filter(p =>
 
     // HEADER
     filled(0, 0, PW, 20, 30, 64, 175)
-    txt('INFORME S-1', PW / 2, 8.5, 13, true, [255, 255, 255], 'center')
+    txt('CONGREGACIÓN PLAZA DE LA MISERICORDIA', PW / 2, 8.5, 13, true, [255, 255, 255], 'center')
     txt('PREDICACION Y ASISTENCIA A LAS REUNIONES', PW / 2, 13.5, 7, false, [180, 200, 255], 'center')
     txt(mesNombre, PW / 2, 18.5, 9, true, [255, 255, 255], 'center')
 
@@ -343,13 +343,17 @@ const publicadoresActivos = publicadores.filter(p =>
       else          { col2idx.push(i); h2 += h }
     })
 
-    const drawList = (list, x, startY) => {
+const drawList = (list, x, startY) => {
       const h = hdH + list.items.length * itemH + 4
       filled(x, startY, lColW, h, ...list.bg)
       filled(x, startY, lColW, hdH, ...list.hd)
       txt(`${list.title} (${list.items.length})`, x + 3, startY + 4.5, 6.5, true, [255, 255, 255])
       list.items.forEach((pub, idx) => {
-        txt(`• ${pub.apellido}, ${pub.nombre}`, x + 3, startY + hdH + 4 + idx * itemH, 7.5, false)
+        // NUEVO: agregar horas entre paréntesis solo en la lista de auxiliares
+        const extra = list.title === 'PRECURSORES AUXILIARES' && pub.horasAux != null
+          ? ` (${pub.horasAux}h)`
+          : ''
+        txt(`• ${pub.apellido}, ${pub.nombre}${extra}`, x + 3, startY + hdH + 4 + idx * itemH, 7.5, false)
       })
       return startY + h + 3
     }
@@ -650,7 +654,7 @@ const publicadoresActivos = publicadores.filter(p =>
 
       {/* === LISTAS ADICIONALES === */}
 
-      {/* Precursores Auxiliares del mes (con nombres) */}
+{/* Precursores Auxiliares del Mes (con nombres) */}
       {precursoresAuxiliaresLista.length > 0 && (
         <div className="card p-6 bg-yellow-50 border-yellow-200">
           <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -660,7 +664,7 @@ const publicadoresActivos = publicadores.filter(p =>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {precursoresAuxiliaresLista.map(pub => (
               <div key={pub.id} className="text-sm text-slate-700">
-                • {pub.apellido}, {pub.nombre}
+                • {pub.apellido}, {pub.nombre} {pub.horasAux != null && `(${pub.horasAux}h)`}
               </div>
             ))}
           </div>

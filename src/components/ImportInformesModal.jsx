@@ -4,12 +4,13 @@ import * as XLSX from 'xlsx'
 import { db } from '../lib/supabase'
 import { getMesNombre } from '../utils/dateUtils'
 
-export default function ImportInformesModal({ onClose, publicadores, mesActual, onImport }) {
+export default function ImportInformesModal({ onClose, publicadores, mesActual, informesExistentes = [], onImport }) {
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState('upload') // 'upload', 'review', 'result'
   const [informesParseados, setInformesParseados] = useState([])
   const [result, setResult] = useState(null)
   const [mapeo, setMapeo] = useState({}) // clave: "nombre|apellido" normalizado -> publicador_id
+  const [omitidosExistentes, setOmitidosExistentes] = useState(0)
 
   // Cargar la memoria de emparejamientos al abrir el modal
   useEffect(() => {
@@ -46,9 +47,14 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
         return
       }
 
-      // Parsear y hacer matching
       const informesProcesados = procesarInformes(jsonData)
-      setInformesParseados(informesProcesados)
+
+      // NUEVO: separar los que ya tienen informe cargado (mismo publicador, mes y año)
+      const pendientes = informesProcesados.filter(inf => !inf.yaTieneInforme)
+      const yaCargados = informesProcesados.length - pendientes.length
+
+      setInformesParseados(pendientes)
+      setOmitidosExistentes(yaCargados)
       setStep('review')
     } catch (error) {
       console.error('Error procesando Excel:', error)
@@ -77,6 +83,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
       // Parsear mes
       const mesTexto = (row.Mes || '').toString().toLowerCase()
       const mes = mesMap[mesTexto] || mesActual.mes
+      const ano = row.Año || row.ano || mesActual.ano
 
       // Parsear marca de precursor del Excel
       const marcaPrecursorExcel = ['si', 'sí', 'yes', 'x', '1'].includes(
@@ -98,16 +105,20 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
         apellidoExcel,
         publicador: match,
         matchAutomatico: !!match,
-        matchPorMemoria, // true si vino de una importación anterior ya confirmada
+        matchPorMemoria,
         mes,
-        ano: row.Año || row.ano || mesActual.ano,
+        ano,
         participo: ['si', 'sí', 'yes', 'x', '1'].includes((row.Participó || '').toString().toLowerCase().trim()),
         cursos: parseInt(row.Cursos || 0) || 0,
         horas: parseInt(row.Horas || 0) || 0,
-        marcaPrecursorExcel, // Guardamos la marca original para mostrarlo
-        precursorAuxiliar, // Este es el valor correcto que se guardará
-        esPrecursorRegular, // Para mostrar el badge
-        notas: row.Comentarios || row.comentarios || row.Notas || ''
+        marcaPrecursorExcel,
+        precursorAuxiliar,
+        esPrecursorRegular,
+        notas: row.Comentarios || row.comentarios || row.Notas || '',
+        // NUEVO: si el publicador matcheado ya tiene un informe cargado para ese mes/año
+        yaTieneInforme: match ? informesExistentes.some(inf =>
+          inf.publicador_id === match.id && inf.mes === mes && inf.ano === ano
+        ) : false
       }
     })
   }
@@ -269,6 +280,7 @@ export default function ImportInformesModal({ onClose, publicadores, mesActual, 
             {step === 'review' && (
               <p className="text-sm text-slate-600 mt-1">
                 {matchPorMemoria} ya conocidos • {matchAutomaticos - matchPorMemoria} automáticos • {asignadosManualmente} asignados • {sinMatch} sin asignar
+                {omitidosExistentes > 0 && ` • ${omitidosExistentes} omitidos (ya tenían informe cargado)`}
               </p>
             )}
           </div>
