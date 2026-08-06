@@ -5,6 +5,8 @@ import ImportModal from './ImportModal'
 import EditPublicadorModal from './EditPublicadorModal'
 import VistaMudados from './VistaMudados'
 import GenerarS21Modal from './GenerarS21Modal'
+import { exportarListaGrupos } from "../utils/pdf/exportarListaGrupos";
+import jsPDF from 'jspdf'
 
 export default function Publicadores({ publicadores, onReload }) {
   const [filtro, setFiltro] = useState('')
@@ -119,6 +121,13 @@ export default function Publicadores({ publicadores, onReload }) {
                 <FileText size={16} />
                 Generar S-21
               </button>
+             <button
+  className="btn-secondary inline-flex items-center gap-2"
+  onClick={() => exportarListaGrupos(publicadores)}
+>
+  <FileText size={16} />
+  Lista por grupos
+</button>
               <button 
                 className="btn-secondary"
                 onClick={() => setShowImportModal(true)}
