@@ -3,6 +3,7 @@ import { FileText, Copy, CheckCircle, Download, Users, AlertCircle, Star } from 
 import { getMesNombre } from '../utils/dateUtils'
 import { db } from '../lib/supabase'
 import jsPDF from 'jspdf'
+import GraficoAnoServicio from './GraficoAnoServicio'
 
 export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   const [asistenciaFinSemana, setAsistenciaFinSemana] = useState('')
@@ -762,13 +763,16 @@ const drawList = (list, x, startY) => {
         </div>
       )}
 
-      {/* Footer info */}
+{/* Footer info */}
       <div className="card p-4 bg-blue-50 border-blue-200">
         <p className="text-sm text-blue-800">
           💡 <strong>Tip:</strong> Click en cualquier número para copiarlo al portapapeles. 
           Luego pégalo directamente en JW.org Hub.
         </p>
       </div>
+
+      {/* NUEVO: Gráficos del año de servicio */}
+      <GraficoAnoServicio publicadores={publicadores} />
     </div>
   )
 }
