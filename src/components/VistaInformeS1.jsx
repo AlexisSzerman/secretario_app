@@ -4,12 +4,14 @@ import { getMesNombre } from '../utils/dateUtils'
 import { db } from '../lib/supabase'
 import jsPDF from 'jspdf'
 import GraficoAnoServicio from './GraficoAnoServicio'
+import { obtenerDatosAnoServicio } from '../utils/anoServicioStats'
 
 export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   const [asistenciaFinSemana, setAsistenciaFinSemana] = useState('')
   const [asistenciaEntreSemana, setAsistenciaEntreSemana] = useState('')
   const [copiado, setCopiado] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [exportando, setExportando] = useState(false)
   
   // Listas dinámicas
   const [publicadoresAlerta, setPublicadoresAlerta] = useState([])
@@ -235,139 +237,247 @@ const publicadoresActivos = publicadores.filter(p =>
     setTimeout(() => setCopiado(null), 2000)
   }
 
-  // === EXPORTAR PDF ===
-  const exportarPDF = () => {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const mesNombre = getMesNombre(mesActual.mes).toUpperCase() + ' ' + mesActual.ano
-    const M = 10
-    const PW = 210
-    const UW = PW - M * 2
+// === EXPORTAR PDF ===
+  const exportarPDF = async () => {
+    setExportando(true)
+    try {
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+      const mesNombre = getMesNombre(mesActual.mes).toUpperCase() + ' ' + mesActual.ano
+      const M = 10
+      const PW = 210
+      const UW = PW - M * 2
 
-    const filled = (x, y, w, h, r, g, b) => {
-      doc.setFillColor(r, g, b)
-      doc.rect(x, y, w, h, 'F')
-    }
-    const txt = (text, x, y, size, bold, color = [30, 30, 30], align = 'left') => {
-      doc.setFontSize(size)
-      doc.setFont('helvetica', bold ? 'bold' : 'normal')
-      doc.setTextColor(...color)
-      doc.text(String(text), x, y, { align })
-    }
-
-    // HEADER
-    filled(0, 0, PW, 20, 30, 64, 175)
-    txt('CONGREGACIÓN PLAZA DE LA MISERICORDIA', PW / 2, 8.5, 13, true, [255, 255, 255], 'center')
-    txt('PREDICACION Y ASISTENCIA A LAS REUNIONES', PW / 2, 13.5, 7, false, [180, 200, 255], 'center')
-    txt(mesNombre, PW / 2, 18.5, 9, true, [255, 255, 255], 'center')
-
-    let y = 25
-
-    // ASISTENCIA
-    if (asistenciaFinSemana || asistenciaEntreSemana) {
-      filled(M, y, UW, 14, 241, 245, 249)
-      filled(M, y, UW, 5.5, 71, 85, 105)
-      txt('ASISTENCIA PROMEDIO', M + UW / 2, y + 3.8, 7, true, [255, 255, 255], 'center')
-      let ax = M + 10
-      const ay = y + 11
-      if (asistenciaFinSemana) {
-        txt('Fin de semana:', ax, ay, 8, false)
-        txt(String(asistenciaFinSemana), ax + 32, ay, 8, true)
-        ax += 85
+      const filled = (x, y, w, h, r, g, b) => {
+        doc.setFillColor(r, g, b)
+        doc.rect(x, y, w, h, 'F')
       }
-      if (asistenciaEntreSemana) {
-        txt('Entre semana:', ax, ay, 8, false)
-        txt(String(asistenciaEntreSemana), ax + 30, ay, 8, true)
+      const txt = (text, x, y, size, bold, color = [30, 30, 30], align = 'left') => {
+        doc.setFontSize(size)
+        doc.setFont('helvetica', bold ? 'bold' : 'normal')
+        doc.setTextColor(...color)
+        doc.text(String(text), x, y, { align })
       }
-      y += 18
-    }
 
-    // BLOQUES STATS (3 columnas)
-    const colW = (UW - 8) / 3
-    const cols = [M, M + colW + 4, M + (colW + 4) * 2]
-    const statsH = 34
+      // HEADER
+      filled(0, 0, PW, 20, 30, 64, 175)
+      txt('CONGREGACIÓN PLAZA DE LA MISERICORDIA', PW / 2, 8.5, 13, true, [255, 255, 255], 'center')
+      txt('PREDICACION Y ASISTENCIA A LAS REUNIONES', PW / 2, 13.5, 7, false, [180, 200, 255], 'center')
+      txt(mesNombre, PW / 2, 18.5, 9, true, [255, 255, 255], 'center')
 
-    const drawStatBox = (x, bg, hd, title, rows) => {
-      filled(x, y, colW, statsH, ...bg)
-      filled(x, y, colW, 7, ...hd)
-      txt(title, x + colW / 2, y + 4.8, 6.8, true, [255, 255, 255], 'center')
-      let ry = y + 13
-      rows.forEach(([label, value]) => {
-        txt(label, x + 3, ry, 8, false)
-        txt(String(value), x + colW - 3, ry, 9, true, [30, 30, 30], 'right')
-        ry += 7
+      let y = 25
+
+      // ASISTENCIA
+      if (asistenciaFinSemana || asistenciaEntreSemana) {
+        filled(M, y, UW, 14, 241, 245, 249)
+        filled(M, y, UW, 5.5, 71, 85, 105)
+        txt('ASISTENCIA PROMEDIO', M + UW / 2, y + 3.8, 7, true, [255, 255, 255], 'center')
+        let ax = M + 10
+        const ay = y + 11
+        if (asistenciaFinSemana) {
+          txt('Fin de semana:', ax, ay, 8, false)
+          txt(String(asistenciaFinSemana), ax + 32, ay, 8, true)
+          ax += 85
+        }
+        if (asistenciaEntreSemana) {
+          txt('Entre semana:', ax, ay, 8, false)
+          txt(String(asistenciaEntreSemana), ax + 30, ay, 8, true)
+        }
+        y += 18
+      }
+
+      // BLOQUES STATS (3 columnas)
+      const colW = (UW - 8) / 3
+      const cols = [M, M + colW + 4, M + (colW + 4) * 2]
+      const statsH = 34
+
+      const drawStatBox = (x, bg, hd, title, rows) => {
+        filled(x, y, colW, statsH, ...bg)
+        filled(x, y, colW, 7, ...hd)
+        txt(title, x + colW / 2, y + 4.8, 6.8, true, [255, 255, 255], 'center')
+        let ry = y + 13
+        rows.forEach(([label, value]) => {
+          txt(label, x + 3, ry, 8, false)
+          txt(String(value), x + colW - 3, ry, 9, true, [30, 30, 30], 'right')
+          ry += 7
+        })
+      }
+
+      drawStatBox(cols[0], [219, 234, 254], [30, 64, 175], 'PUBLICADORES', [
+        ['Total activos',   stats.totalPublicadoresActivos],
+        ['Informes',        stats.publicadores.informes],
+        ['Cursos biblicos', stats.publicadores.cursos],
+      ])
+      drawStatBox(cols[1], [254, 249, 195], [133, 77, 14], 'PREC. AUXILIARES', [
+        ['Informes', stats.precursoresAuxiliares.informes],
+        ['Horas',    stats.precursoresAuxiliares.horas],
+        ['Cursos',   stats.precursoresAuxiliares.cursos],
+      ])
+      drawStatBox(cols[2], [254, 243, 199], [120, 53, 15], 'PREC. REGULARES', [
+        ['Informes', stats.precursoresRegulares.informes],
+        ['Horas',    stats.precursoresRegulares.horas],
+        ['Cursos',   stats.precursoresRegulares.cursos],
+      ])
+
+      y += statsH + 5
+
+      // LISTAS (2 columnas, balanceadas por altura)
+      const allLists = []
+      if (precursoresAuxiliaresLista.length > 0)
+        allLists.push({ title: 'PRECURSORES AUXILIARES', items: precursoresAuxiliaresLista, bg: [254,249,195], hd: [133,77,14] })
+      if (nuevosPublicadores.length > 0)
+        allLists.push({ title: 'NUEVOS PUBLICADORES',    items: nuevosPublicadores,          bg: [220,252,231], hd: [22,101,52] })
+      if (publicadoresMudados.length > 0)
+        allLists.push({ title: 'MUDADOS',                items: publicadoresMudados,          bg: [255,237,213], hd: [154,52,18] })
+      if (noParticiparon.length > 0)
+        allLists.push({ title: 'NO PARTICIPARON',        items: noParticiparon,              bg: [241,245,249], hd: [71,85,105] })
+      if (publicadoresAlerta.length > 0)
+        allLists.push({ title: 'IRREGULARES',            items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
+      if (publicadoresParaInactivar.length > 0)
+        allLists.push({ title: 'PARA INACTIVAR (6 MESES)', items: publicadoresParaInactivar, bg: [253,164,175], hd: [136,19,55] })
+
+      const lColW = (UW - 5) / 2
+      const lc = [M, M + lColW + 5]
+      const itemH = 4.5
+      const hdH = 6.5
+
+      const itemHeights = allLists.map(l => hdH + l.items.length * itemH + 7)
+      const col1idx = [], col2idx = []
+      let h1 = 0, h2 = 0
+      itemHeights.forEach((h, i) => {
+        if (h1 <= h2) { col1idx.push(i); h1 += h }
+        else          { col2idx.push(i); h2 += h }
       })
+
+      const drawList = (list, x, startY) => {
+        const h = hdH + list.items.length * itemH + 4
+        filled(x, startY, lColW, h, ...list.bg)
+        filled(x, startY, lColW, hdH, ...list.hd)
+        txt(`${list.title} (${list.items.length})`, x + 3, startY + 4.5, 6.5, true, [255, 255, 255])
+        list.items.forEach((pub, idx) => {
+          const extra = list.title === 'PRECURSORES AUXILIARES' && pub.horasAux != null
+            ? ` (${pub.horasAux}h)`
+            : ''
+          txt(`• ${pub.apellido}, ${pub.nombre}${extra}`, x + 3, startY + hdH + 4 + idx * itemH, 7.5, false)
+        })
+        return startY + h + 3
+      }
+
+      let y1 = y, y2 = y
+      col1idx.forEach(i => { y1 = drawList(allLists[i], lc[0], y1) })
+      col2idx.forEach(i => { y2 = drawList(allLists[i], lc[1], y2) })
+
+      // FOOTER PÁGINA 1
+      filled(0, 290, PW, 7, 30, 64, 175)
+      txt(`Generado el ${new Date().toLocaleDateString('es-AR')}`, PW / 2, 294.5, 6, false, [200, 215, 255], 'center')
+
+      // ======================
+      // PÁGINA 2: GRÁFICOS DEL AÑO DE SERVICIO (escala de grises)
+      // ======================
+      try {
+        const { meses: mesesAnoServicio, anoServicioLabel } = await obtenerDatosAnoServicio(publicadores)
+
+        if (mesesAnoServicio.length > 1) {
+          doc.addPage()
+
+          filled(0, 0, PW, 16, 71, 85, 105)
+          txt('GRÁFICOS DEL AÑO DE SERVICIO', PW / 2, 7, 11, true, [255, 255, 255], 'center')
+          txt(anoServicioLabel, PW / 2, 12.5, 8, false, [220, 220, 220], 'center')
+
+          const chartsDef = [
+            { titulo: 'Publicadores Activos', key: 'activos', decimales: 0 },
+            { titulo: 'Asistencia Fin de Semana', key: 'asistenciaFinSemana', decimales: 1 },
+            { titulo: 'Asistencia Entre Semana', key: 'asistenciaEntreSemana', decimales: 1 },
+            { titulo: 'Cantidad de Precursores Auxiliares', key: 'cantidadAux', decimales: 0 },
+            { titulo: 'Horas Precursores Auxiliares', key: 'horasAux', decimales: 0 },
+            { titulo: 'Horas Precursores Regulares', key: 'horasReg', decimales: 0 },
+          ]
+
+          // Dibuja un mini-gráfico de línea en escala de grises. Cada punto
+          // lleva su valor escrito arriba, para que el dato sea legible sin
+          // depender de leer el eje.
+          const drawMiniChart = (titulo, key, decimales, x, y, w, h) => {
+            const valores = mesesAnoServicio.map(m => m[key])
+            const valoresValidos = valores.filter(v => v !== null && v !== undefined)
+
+            txt(titulo, x, y, 8, true, [30, 30, 30])
+
+            if (valoresValidos.length === 0) {
+              txt('Sin datos cargados', x, y + h / 2, 7, false, [148, 163, 184])
+              return
+            }
+
+            const chartX = x
+            const chartY = y + 5
+            const chartW = w
+            const chartH = h - 12
+
+            const max = Math.max(...valoresValidos)
+            const min = Math.min(0, Math.min(...valoresValidos))
+            const rango = (max - min) || 1
+
+            // Líneas guía horizontales
+            doc.setDrawColor(226, 232, 240)
+            doc.setLineWidth(0.1)
+            for (let i = 0; i <= 2; i++) {
+              const gy = chartY + chartH - (chartH * i / 2)
+              doc.line(chartX, gy, chartX + chartW, gy)
+            }
+
+            // Eje base
+            doc.setDrawColor(100, 116, 139)
+            doc.setLineWidth(0.2)
+            doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
+
+            const n = mesesAnoServicio.length
+            const paso = n > 1 ? chartW / (n - 1) : 0
+
+            // Línea de datos, saltando meses sin dato cargado
+            doc.setDrawColor(30, 30, 30)
+            doc.setLineWidth(0.4)
+            let prevPt = null
+            mesesAnoServicio.forEach((m, i) => {
+              const v = m[key]
+              const px = chartX + paso * i
+              if (v === null || v === undefined) {
+                prevPt = null
+                return
+              }
+              const py = chartY + chartH - ((v - min) / rango) * chartH
+              if (prevPt) doc.line(prevPt.x, prevPt.y, px, py)
+              prevPt = { x: px, y: py }
+            })
+
+            // Puntos, valores y meses
+            mesesAnoServicio.forEach((m, i) => {
+              const v = m[key]
+              const px = chartX + paso * i
+              if (v !== null && v !== undefined) {
+                const py = chartY + chartH - ((v - min) / rango) * chartH
+                doc.setFillColor(30, 30, 30)
+                doc.circle(px, py, 0.5, 'F')
+                const valorTexto = decimales > 0 ? v.toFixed(decimales) : String(Math.round(v))
+                txt(valorTexto, px, py - 1.5, 5.5, false, [30, 30, 30], 'center')
+              }
+              txt(m.mesLabel, px, chartY + chartH + 4, 5.5, false, [100, 116, 139], 'center')
+            })
+          }
+
+          let yChart = 22
+          const altoChart = 42   
+          chartsDef.forEach(c => {
+            drawMiniChart(c.titulo, c.key, c.decimales, M, yChart, UW, altoChart)
+            yChart += altoChart + 4   
+          })
+        }
+      } catch (error) {
+        console.error('Error agregando gráficos al PDF:', error)
+        // Si falla esta parte, igual se guarda el PDF con la página 1 completa
+      }
+
+      doc.save(`S1-${mesNombre.replace(' ', '-')}.pdf`)
+    } finally {
+      setExportando(false)
     }
-
-    drawStatBox(cols[0], [219, 234, 254], [30, 64, 175], 'PUBLICADORES', [
-      ['Total activos',   stats.totalPublicadoresActivos],
-      ['Informes',        stats.publicadores.informes],
-      ['Cursos biblicos', stats.publicadores.cursos],
-    ])
-    drawStatBox(cols[1], [254, 249, 195], [133, 77, 14], 'PREC. AUXILIARES', [
-      ['Informes', stats.precursoresAuxiliares.informes],
-      ['Horas',    stats.precursoresAuxiliares.horas],
-      ['Cursos',   stats.precursoresAuxiliares.cursos],
-    ])
-    drawStatBox(cols[2], [254, 243, 199], [120, 53, 15], 'PREC. REGULARES', [
-      ['Informes', stats.precursoresRegulares.informes],
-      ['Horas',    stats.precursoresRegulares.horas],
-      ['Cursos',   stats.precursoresRegulares.cursos],
-    ])
-
-    y += statsH + 5
-
-    // LISTAS (2 columnas, balanceadas por altura)
-    const allLists = []
-    if (precursoresAuxiliaresLista.length > 0)
-      allLists.push({ title: 'PRECURSORES AUXILIARES', items: precursoresAuxiliaresLista, bg: [254,249,195], hd: [133,77,14] })
-    if (nuevosPublicadores.length > 0)
-      allLists.push({ title: 'NUEVOS PUBLICADORES',    items: nuevosPublicadores,          bg: [220,252,231], hd: [22,101,52] })
-    if (publicadoresMudados.length > 0)
-      allLists.push({ title: 'MUDADOS',                items: publicadoresMudados,          bg: [255,237,213], hd: [154,52,18] })
-    if (noParticiparon.length > 0)
-      allLists.push({ title: 'NO PARTICIPARON',        items: noParticiparon,              bg: [241,245,249], hd: [71,85,105] })
-    if (publicadoresAlerta.length > 0)
-      allLists.push({ title: 'IRREGULARES',            items: publicadoresAlerta,          bg: [254,226,226], hd: [153,27,27] })
-    if (publicadoresParaInactivar.length > 0)
-      allLists.push({ title: 'PARA INACTIVAR (6 MESES)', items: publicadoresParaInactivar, bg: [253,164,175], hd: [136,19,55] })
-
-    const lColW = (UW - 5) / 2
-    const lc = [M, M + lColW + 5]
-    const itemH = 4.5
-    const hdH = 6.5
-
-    const itemHeights = allLists.map(l => hdH + l.items.length * itemH + 7)
-    const col1idx = [], col2idx = []
-    let h1 = 0, h2 = 0
-    itemHeights.forEach((h, i) => {
-      if (h1 <= h2) { col1idx.push(i); h1 += h }
-      else          { col2idx.push(i); h2 += h }
-    })
-
-const drawList = (list, x, startY) => {
-      const h = hdH + list.items.length * itemH + 4
-      filled(x, startY, lColW, h, ...list.bg)
-      filled(x, startY, lColW, hdH, ...list.hd)
-      txt(`${list.title} (${list.items.length})`, x + 3, startY + 4.5, 6.5, true, [255, 255, 255])
-      list.items.forEach((pub, idx) => {
-        // NUEVO: agregar horas entre paréntesis solo en la lista de auxiliares
-        const extra = list.title === 'PRECURSORES AUXILIARES' && pub.horasAux != null
-          ? ` (${pub.horasAux}h)`
-          : ''
-        txt(`• ${pub.apellido}, ${pub.nombre}${extra}`, x + 3, startY + hdH + 4 + idx * itemH, 7.5, false)
-      })
-      return startY + h + 3
-    }
-
-    let y1 = y, y2 = y
-    col1idx.forEach(i => { y1 = drawList(allLists[i], lc[0], y1) })
-    col2idx.forEach(i => { y2 = drawList(allLists[i], lc[1], y2) })
-
-    // FOOTER
-    filled(0, 290, PW, 7, 30, 64, 175)
-    txt(`Generado el ${new Date().toLocaleDateString('es-AR')}`, PW / 2, 294.5, 6, false, [200, 215, 255], 'center')
-
-    doc.save(`S1-${mesNombre.replace(' ', '-')}.pdf`)
   }
 
   return (
@@ -386,17 +496,24 @@ const drawList = (list, x, startY) => {
               </p>
             </div>
           </div>
-          <button
+<button
             onClick={exportarPDF}
-            className="btn-primary flex items-center gap-2"
+            disabled={exportando}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={20} />
-            Exportar PDF
+            {exportando ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Generando...
+              </>
+            ) : (
+              <>
+                <Download size={20} />
+                Exportar PDF
+              </>
+            )}
           </button>
         </div>
-        <p className="text-sm text-blue-700">
-          📋 Cifras listas para copiar a JW.org Hub • Click en cada número para copiar
-        </p>
       </div>
 
       {/* Asistencia promedio */}
