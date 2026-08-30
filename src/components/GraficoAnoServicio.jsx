@@ -1,26 +1,41 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { RefreshCw } from 'lucide-react'
 import { obtenerDatosAnoServicio } from '../utils/anoServicioStats'
 
-export default function GraficoAnoServicio({ publicadores }) {
+export default function GraficoAnoServicio({ publicadores, refreshKey = 0 }) {
   const [datos, setDatos] = useState(null)
   const [anoServicioLabel, setAnoServicioLabel] = useState('')
   const [loading, setLoading] = useState(true)
+  // Estado separado del "loading" inicial: se usa cuando el usuario aprieta
+  // el botón "Actualizar datos", para no ocultar los gráficos ya cargados
+  // mientras se refrescan (sólo gira el ícono del botón).
+  const [refrescando, setRefrescando] = useState(false)
 
+  // Se recarga al montar Y cada vez que cambia refreshKey (por ejemplo,
+  // después de guardar la asistencia en VistaInformeS1) o la lista de
+  // publicadores.
   useEffect(() => {
     cargarDatos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey, publicadores])
 
-  const cargarDatos = async () => {
-    setLoading(true)
+  const cargarDatos = async ({ manual = false } = {}) => {
+    if (manual) {
+      setRefrescando(true)
+    } else {
+      setLoading(true)
+    }
     try {
       const { meses, anoServicioLabel } = await obtenerDatosAnoServicio(publicadores)
       setDatos(meses)
       setAnoServicioLabel(anoServicioLabel)
     } catch (error) {
       console.error('Error cargando datos del año de servicio:', error)
+      if (manual) alert('Error al actualizar los datos de los gráficos')
     } finally {
       setLoading(false)
+      setRefrescando(false)
     }
   }
 
@@ -46,9 +61,19 @@ export default function GraficoAnoServicio({ publicadores }) {
 
   return (
     <div className="card p-6">
-      <h3 className="text-lg font-semibold text-slate-900 mb-1">
-        Gráficos del Año de Servicio
-      </h3>
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-lg font-semibold text-slate-900">
+          Gráficos del Año de Servicio
+        </h3>
+        <button
+          onClick={() => cargarDatos({ manual: true })}
+          disabled={refrescando}
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+        >
+          <RefreshCw size={16} className={refrescando ? 'animate-spin' : ''} />
+          {refrescando ? 'Actualizando...' : 'Actualizar datos'}
+        </button>
+      </div>
       <p className="text-sm text-slate-600 mb-6">
         {anoServicioLabel}
       </p>

@@ -12,7 +12,12 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
   const [copiado, setCopiado] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [exportando, setExportando] = useState(false)
-  
+
+  // Se incrementa cada vez que se guarda la asistencia (u otro dato que
+  // afecte a los gráficos del año de servicio), para forzar que
+  // GraficoAnoServicio vuelva a pedir los datos a Supabase.
+  const [refreshKey, setRefreshKey] = useState(0)
+
   // Listas dinámicas
   const [publicadoresAlerta, setPublicadoresAlerta] = useState([])
   const [publicadoresParaInactivar, setPublicadoresParaInactivar] = useState([])
@@ -44,6 +49,10 @@ export default function VistaInformeS1({ publicadores, informes, mesActual }) {
         asistencia_entre_semana: parseFloat(asistenciaEntreSemana) || null
       })
       alert('Asistencia guardada correctamente')
+      // Avisa a GraficoAnoServicio que vuelva a cargar los datos, ya que
+      // la asistencia recién guardada puede afectar los gráficos del
+      // año de servicio actual.
+      setRefreshKey(prev => prev + 1)
     } catch (error) {
       console.error('Error guardando asistencia:', error)
       alert('Error al guardar asistencia')
@@ -889,7 +898,7 @@ const publicadoresActivos = publicadores.filter(p =>
       </div>
 
       {/* NUEVO: Gráficos del año de servicio */}
-      <GraficoAnoServicio publicadores={publicadores} />
+      <GraficoAnoServicio publicadores={publicadores} refreshKey={refreshKey} />
     </div>
   )
 }
