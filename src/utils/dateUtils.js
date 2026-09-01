@@ -58,6 +58,25 @@ export const getAnoServicioActual = () => {
 }
 
 // --------------------------------------------
+// Año de servicio, calculado a partir del último MES VENCIDO
+// (no de la fecha de hoy). Así, cuando arranca septiembre pero
+// todavía no informaste agosto, seguís viendo el año de servicio
+// que se está por cerrar hasta que agosto también quede vencido.
+// --------------------------------------------
+export const getAnoServicioVencido = () => {
+  const mesVencido = getMesVencido()
+  const anoInicio = mesVencido.mes >= 9 ? mesVencido.ano : mesVencido.ano - 1
+  const anoFin = anoInicio + 1
+
+  return {
+    inicio: { mes: 9, ano: anoInicio },
+    fin: { mes: 8, ano: anoFin },
+    nombre: `${anoInicio}-${anoFin}`,
+    label: `Septiembre ${anoInicio} - Agosto ${anoFin}`
+  }
+}
+
+// --------------------------------------------
 // Obtener todos los meses de un año de servicio
 // --------------------------------------------
 export const getMesesAnoServicio = (anoServicio) => {

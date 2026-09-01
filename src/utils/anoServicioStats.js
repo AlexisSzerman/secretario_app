@@ -3,7 +3,7 @@
 // (usada tanto por el gráfico en pantalla como por el PDF del S-1)
 
 import { db } from '../lib/supabase'
-import { getMesesAnoServicio, getMesNombre, getMesVencido } from './dateUtils'
+import { getMesesAnoServicio, getMesNombre, getMesVencido, getAnoServicioVencido } from './dateUtils'
 
 // Mismo criterio de elegibilidad que usa VistaInformeS1
 export const debiaInformarEnMesEspecifico = (publicador, mes, ano) => {
@@ -26,14 +26,7 @@ export const debiaInformarEnMesEspecifico = (publicador, mes, ano) => {
 // empieza septiembre.
 export const obtenerDatosAnoServicio = async (publicadores) => {
   const mesVencido = getMesVencido()
-
-  const anoInicio = mesVencido.mes >= 9 ? mesVencido.ano : mesVencido.ano - 1
-  const anoServicio = {
-    inicio: { mes: 9, ano: anoInicio },
-    fin: { mes: 8, ano: anoInicio + 1 },
-    nombre: `${anoInicio}-${anoInicio + 1}`,
-    label: `Septiembre ${anoInicio} - Agosto ${anoInicio + 1}`
-  }
+  const anoServicio = getAnoServicioVencido()   // ← reemplaza el bloque armado a mano
 
   const todosMeses = getMesesAnoServicio(anoServicio)
   const limiteNum = mesVencido.ano * 12 + (mesVencido.mes - 1)

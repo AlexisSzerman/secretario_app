@@ -111,7 +111,7 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
             <div className="text-sm font-medium text-slate-600">Informaron</div>
           </div>
           <div className="text-3xl font-semibold text-slate-900">{informados}</div>
-          <div className="text-xs text-slate-500 mt-1">de {totalPublicadores} ({porcentajeInformado}%)</div>
+          {/* <div className="text-xs text-slate-500 mt-1">de {totalPublicadores} ({porcentajeInformado}%)</div> */}
         </div>
 
         <div className="card p-6">
@@ -159,7 +159,7 @@ export default function VistaEstadisticas({ publicadores, informes, mesActual })
           </div>
           <div className="text-4xl font-semibold text-slate-900 mb-2">{precursoresRegulares}</div>
           <p className="text-sm text-slate-600">
-            Que eran precursores en este mes
+            Este mes
           </p>
         </div>
 
