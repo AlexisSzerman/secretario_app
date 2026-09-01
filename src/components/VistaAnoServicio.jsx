@@ -179,7 +179,20 @@ export default function VistaAnoServicio({ publicadores }) {
             ? horasTotales / mesesInformadosCerrados
             : 0
 
-        const proyeccion12Meses = promedioMensual * 12
+        const promedioActual =
+  mesesInformados > 0
+    ? horasTotales / mesesInformados
+    : 0
+
+const promedioParaProyeccion =
+  mesesInformadosCerrados > 0
+    ? horasTotales / mesesInformadosCerrados
+    : 0
+
+const proyeccion12Meses =
+  promedioParaProyeccion * 12
+
+        
 
         const horasFaltanPara560 = Math.max(
           560 - horasTotales,
@@ -222,25 +235,25 @@ if (mesesRestantes === 0) {
 }
 
         analisisPrecursores.push({
-          ...pub,
-          horasTotales: Math.round(horasTotales),
-          mesesInformados,
-          totalMesesAno,
-          mesesRestantes,
-          promedioMensual: parseFloat(
-            promedioMensual.toFixed(1)
-          ),
-          horasMesPara560: parseFloat(
-            horasMesPara560.toFixed(1)
-          ),
-          horasMesPara600: parseFloat(
-            horasMesPara600.toFixed(1)
-          ),
-          proyeccion12Meses: Math.round(
-            proyeccion12Meses
-          ),
-          estado
-        })
+  ...pub,
+  horasTotales: Math.round(horasTotales),
+  mesesInformados,
+  totalMesesAno,
+  mesesRestantes,
+  promedioMensual: parseFloat(
+    promedioActual.toFixed(1)
+  ),
+  horasMesPara560: parseFloat(
+    horasMesPara560.toFixed(1)
+  ),
+  horasMesPara600: parseFloat(
+    horasMesPara600.toFixed(1)
+  ),
+  proyeccion12Meses: Math.round(
+    proyeccion12Meses
+  ),
+  estado
+})
       }
 
       // Ordenar por estado
