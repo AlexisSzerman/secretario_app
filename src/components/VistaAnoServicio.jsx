@@ -180,19 +180,19 @@ export default function VistaAnoServicio({ publicadores }) {
             : 0
 
         const promedioActual =
-  mesesInformados > 0
-    ? horasTotales / mesesInformados
-    : 0
+          mesesInformados > 0
+            ? horasTotales / mesesInformados
+            : 0
 
-const promedioParaProyeccion =
-  mesesInformadosCerrados > 0
-    ? horasTotales / mesesInformadosCerrados
-    : 0
+        const promedioParaProyeccion =
+          mesesInformadosCerrados > 0
+            ? horasTotales / mesesInformadosCerrados
+            : 0
 
-const proyeccion12Meses =
-  promedioParaProyeccion * 12
+        const proyeccion12Meses =
+          promedioParaProyeccion * 12
 
-        
+
 
         const horasFaltanPara560 = Math.max(
           560 - horasTotales,
@@ -216,44 +216,44 @@ const proyeccion12Meses =
 
         let estado = 'ok'
 
-if (mesesRestantes === 0) {
-  // Año de servicio terminado:
-  // se evalúa el resultado REAL, no la proyección.
-  if (horasTotales >= 560) {
-    estado = 'en-meta'
-  } else {
-    estado = 'bajo-meta'
-  }
-} else if (horasMesPara560 >= 60) {
-  estado = 'critico'
-} else if (horasMesPara560 >= 55) {
-  estado = 'atencion'
-} else if (proyeccion12Meses >= 560) {
-  estado = 'en-meta'
-} else {
-  estado = 'bajo-meta'
-}
+        if (mesesRestantes === 0) {
+          // Año de servicio terminado:
+          // se evalúa el resultado REAL, no la proyección.
+          if (horasTotales >= 560) {
+            estado = 'en-meta'
+          } else {
+            estado = 'bajo-meta'
+          }
+        } else if (horasMesPara560 >= 60) {
+          estado = 'critico'
+        } else if (horasMesPara560 >= 55) {
+          estado = 'atencion'
+        } else if (proyeccion12Meses >= 560) {
+          estado = 'en-meta'
+        } else {
+          estado = 'bajo-meta'
+        }
 
         analisisPrecursores.push({
-  ...pub,
-  horasTotales: Math.round(horasTotales),
-  mesesInformados,
-  totalMesesAno,
-  mesesRestantes,
-  promedioMensual: parseFloat(
-    promedioActual.toFixed(1)
-  ),
-  horasMesPara560: parseFloat(
-    horasMesPara560.toFixed(1)
-  ),
-  horasMesPara600: parseFloat(
-    horasMesPara600.toFixed(1)
-  ),
-  proyeccion12Meses: Math.round(
-    proyeccion12Meses
-  ),
-  estado
-})
+          ...pub,
+          horasTotales: Math.round(horasTotales),
+          mesesInformados,
+          totalMesesAno,
+          mesesRestantes,
+          promedioMensual: parseFloat(
+            promedioActual.toFixed(1)
+          ),
+          horasMesPara560: parseFloat(
+            horasMesPara560.toFixed(1)
+          ),
+          horasMesPara600: parseFloat(
+            horasMesPara600.toFixed(1)
+          ),
+          proyeccion12Meses: Math.round(
+            proyeccion12Meses
+          ),
+          estado
+        })
       }
 
       // Ordenar por estado
@@ -332,15 +332,15 @@ if (mesesRestantes === 0) {
     promedioGeneral:
       analisis.length > 0
         ? (
-            analisis.reduce(
-              (sum, a) => sum + a.horasTotales,
-              0
-            ) /
-            analisis.reduce(
-              (sum, a) => sum + a.mesesInformados,
-              0
-            )
-          ).toFixed(1)
+          analisis.reduce(
+            (sum, a) => sum + a.horasTotales,
+            0
+          ) /
+          analisis.reduce(
+            (sum, a) => sum + a.mesesInformados,
+            0
+          )
+        ).toFixed(1)
         : 0
   }
 
@@ -522,17 +522,16 @@ if (mesesRestantes === 0) {
             <button
               key={f}
               onClick={() => setFiltro(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                filtro === f
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filtro === f
                   ? 'bg-slate-900 text-white'
                   : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
+                }`}
             >
               {f === 'TODOS'
                 ? 'Todos'
                 : f === 'ALERTA'
-                ? 'Solo Alertas'
-                : 'Solo OK'}
+                  ? 'Solo Alertas'
+                  : 'Solo OK'}
             </button>
           ))}
 
@@ -575,17 +574,16 @@ if (mesesRestantes === 0) {
           return (
             <div
               key={prec.id}
-              className={`card p-6 ${
-                prec.estado === 'critico'
+              className={`card p-6 ${prec.estado === 'critico'
                   ? 'border-l-4 border-red-500'
                   : prec.estado === 'atencion'
-                  ? 'border-l-4 border-amber-500'
-                  : prec.estado === 'bajo-meta'
-                  ? 'border-l-4 border-orange-500'
-                  : prec.estado === 'en-meta'
-                  ? 'border-l-4 border-green-500'
-                  : 'border-l-4 border-emerald-500'
-              }`}
+                    ? 'border-l-4 border-amber-500'
+                    : prec.estado === 'bajo-meta'
+                      ? 'border-l-4 border-orange-500'
+                      : prec.estado === 'en-meta'
+                        ? 'border-l-4 border-green-500'
+                        : 'border-l-4 border-emerald-500'
+                }`}
             >
 
               {/* Header */}
@@ -605,15 +603,14 @@ if (mesesRestantes === 0) {
 
                 {badge && (
                   <span
-                    className={`badge ${
-                      prec.estado === 'critico'
+                    className={`badge ${prec.estado === 'critico'
                         ? 'badge-red'
                         : prec.estado === 'atencion'
-                        ? 'badge-yellow'
-                        : prec.estado === 'en-meta'
-                        ? 'badge-green'
-                        : ''
-                    }`}
+                          ? 'badge-yellow'
+                          : prec.estado === 'en-meta'
+                            ? 'badge-green'
+                            : ''
+                      }`}
                   >
                     {badge}
                   </span>
@@ -666,15 +663,14 @@ if (mesesRestantes === 0) {
                   </span>{' '}
 
                   <span
-                    className={`font-semibold ${
-                      prec.estado === 'critico'
+                    className={`font-semibold ${prec.estado === 'critico'
                         ? 'text-red-600'
                         : prec.estado === 'atencion'
-                        ? 'text-amber-600'
-                        : prec.estado === 'bajo-meta'
-                        ? 'text-orange-600'
-                        : 'text-emerald-600'
-                    }`}
+                          ? 'text-amber-600'
+                          : prec.estado === 'bajo-meta'
+                            ? 'text-orange-600'
+                            : 'text-emerald-600'
+                      }`}
                   >
                     {prec.horasMesPara560}h/mes
                   </span>
@@ -709,17 +705,16 @@ if (mesesRestantes === 0) {
                   </span>{' '}
 
                   <span
-                    className={`font-semibold text-lg ${
-                      prec.estado === 'critico'
+                    className={`font-semibold text-lg ${prec.estado === 'critico'
                         ? 'text-red-600'
                         : prec.estado === 'atencion'
-                        ? 'text-amber-600'
-                        : prec.estado === 'bajo-meta'
-                        ? 'text-orange-600'
-                        : prec.estado === 'en-meta'
-                        ? 'text-green-600'
-                        : 'text-emerald-600'
-                    }`}
+                          ? 'text-amber-600'
+                          : prec.estado === 'bajo-meta'
+                            ? 'text-orange-600'
+                            : prec.estado === 'en-meta'
+                              ? 'text-green-600'
+                              : 'text-emerald-600'
+                      }`}
                   >
                     {prec.proyeccion12Meses}h
                   </span>
