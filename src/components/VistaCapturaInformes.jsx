@@ -37,11 +37,18 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
     return informes.find(inf => inf.publicador_id === publicadorId)
   }
 
-  const publicadoresFiltrados = publicadoresDeberian.filter(p => {
+
+const normalizar = (texto) => 
+    texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+  const publicadoresBase = publicadoresDeberian.filter(p => {
     const matchGrupo = grupoFiltro === 'TODOS' || p.grupo === grupoFiltro
     const matchBusqueda = !busqueda || 
-      `${p.nombre} ${p.apellido}`.toLowerCase().includes(busqueda.toLowerCase())
-    
+      normalizar(`${p.nombre} ${p.apellido}`).includes(normalizar(busqueda))
+    return matchGrupo && matchBusqueda
+  })
+
+  const publicadoresFiltrados = publicadoresBase.filter(p => {
     const informe = getInformePublicador(p.id)
     let matchEstado = true
     
@@ -53,15 +60,20 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
       matchEstado = informe && informe.precursor_auxiliar
     }
     
-    return matchGrupo && matchBusqueda && matchEstado
+    return matchEstado
   })
 
-  const sinInformar = publicadoresDeberian.filter(p => !getInformePublicador(p.id)).length
-  const noParticiparon = publicadoresDeberian.filter(p => {
+  // Estos contadores ahora respetan el grupo y la búsqueda seleccionados
+  const sinInformar = publicadoresBase.filter(p => !getInformePublicador(p.id)).length
+  const noParticiparon = publicadoresBase.filter(p => {
     const inf = getInformePublicador(p.id)
     return inf && !inf.participo
   }).length
-  const precursoresAux = informes.filter(i => i.precursor_auxiliar).length
+  const precursoresAux = publicadoresBase.filter(p => {
+    const inf = getInformePublicador(p.id)
+    return inf && inf.precursor_auxiliar
+  }).length
+
 
   return (
     <div className="space-y-6">
@@ -83,8 +95,8 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
 
       {/* Filtros */}
       <div className="card p-6">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 text-slate-400" size={18} />
               <input
@@ -95,21 +107,26 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
                 className="custom-input pl-10"
               />
             </div>
-            <select
-              value={grupoFiltro}
-              onChange={(e) => setGrupoFiltro(e.target.value)}
-              className="custom-input md:w-48"
-            >
-              {grupos.map(g => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
+
+            <div className="sm:w-56">
+              <select
+                value={grupoFiltro}
+                onChange={(e) => setGrupoFiltro(e.target.value)}
+                className="custom-input"
+              >
+                {grupos.map(g => (
+                  <option key={g} value={g}>
+                    {g === 'TODOS' ? 'Todos los grupos' : `Grupo ${g}`}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter size={16} className="text-slate-500" />
+            <Filter size={16} className="text-slate-500 flex-shrink-0" />
             <div className="flex gap-2 flex-wrap">
-              <button
+<button
                 onClick={() => setFiltroEstado('TODOS')}
                 className={`px-3 py-1 rounded text-sm transition-all ${
                   filtroEstado === 'TODOS'
@@ -154,9 +171,10 @@ export default function VistaCapturaInformes({ publicadores, informes, mesActual
         </div>
       </div>
 
+      
       {/* Lista de publicadores */}
       <div className="card divide-y divide-slate-100">
-        {publicadoresFiltrados.map((pub, idx) => (
+        {publicadoresFiltrados.map((pub) => (
           <FilaPublicador
             key={pub.id}
             publicador={pub}

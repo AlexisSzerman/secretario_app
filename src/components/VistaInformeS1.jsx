@@ -397,8 +397,8 @@ const publicadoresActivos = publicadores.filter(p =>
             { titulo: 'Asistencia Fin de Semana', key: 'asistenciaFinSemana', decimales: 1 },
             { titulo: 'Asistencia Entre Semana', key: 'asistenciaEntreSemana', decimales: 1 },
             { titulo: 'Cantidad de Precursores Auxiliares', key: 'cantidadAux', decimales: 0 },
-            { titulo: 'Horas Precursores Auxiliares', key: 'horasAux', decimales: 0 },
-            { titulo: 'Horas Precursores Regulares', key: 'horasReg', decimales: 0 },
+            { titulo: 'Cursos Bíblicos', key: 'cursosTotales', decimales: 0 },
+            { titulo: 'No Participaron', key: 'noParticiparon', decimales: 0 },
           ]
 
           // Dibuja un mini-gráfico de línea en escala de grises. Cada punto

@@ -55,8 +55,8 @@ export default function GraficoAnoServicio({ publicadores, refreshKey = 0 }) {
     { titulo: 'Asistencia Fin de Semana', dataKey: 'asistenciaFinSemana', color: '#0f766e', bg: 'bg-teal-50', border: 'border-teal-200' },
     { titulo: 'Asistencia Entre Semana', dataKey: 'asistenciaEntreSemana', color: '#7c3aed', bg: 'bg-purple-50', border: 'border-purple-200' },
     { titulo: 'Cantidad de Precursores Auxiliares', dataKey: 'cantidadAux', color: '#ca8a04', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-    { titulo: 'Horas Precursores Auxiliares', dataKey: 'horasAux', color: '#b45309', bg: 'bg-amber-50', border: 'border-amber-200' },
-    { titulo: 'Horas Precursores Regulares', dataKey: 'horasReg', color: '#9a3412', bg: 'bg-orange-50', border: 'border-orange-200' },
+    { titulo: 'Cursos Bíblicos', dataKey: 'cursosTotales', color: '#4338ca', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+    { titulo: 'No Participaron', dataKey: 'noParticiparon', color: '#64748b', bg: 'bg-slate-50', border: 'border-slate-200' },
   ]
 
   return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Upload, Star, Phone, Droplet, Edit2, Plus, Shield, Award, FileText, EyeOff, Eye } from 'lucide-react'
+import { Search, Upload, Star, Phone, Droplet, Edit2, Plus, Shield, Award, FileText, EyeOff, Eye, Users, Home } from 'lucide-react'
 import { formatearFecha } from '../utils/dateUtils'
 import ImportModal from './ImportModal'
 import EditPublicadorModal from './EditPublicadorModal'
@@ -16,7 +16,7 @@ export default function Publicadores({ publicadores, onReload }) {
   const [publicadorEditar, setPublicadorEditar] = useState(null)
   const [vistaActual, setVistaActual] = useState('activos') // 'activos' o 'mudados'
   const [showS21Modal, setShowS21Modal] = useState(false)
-  const [mostrarInactivos, setMostrarInactivos] = useState(true) // NUEVO: toggle inactivos
+  const [mostrarInactivos, setMostrarInactivos] = useState(false) // NUEVO: toggle inactivos
 
   const grupos = ['TODOS', ...new Set(publicadores.map(p => p.grupo).filter(Boolean).sort())]
 
@@ -28,9 +28,12 @@ export default function Publicadores({ publicadores, onReload }) {
     ? publicadoresActivos
     : publicadoresActivos.filter(p => p.tipo_servicio !== 'Inactivo')
 
+  const normalizar = (texto) => 
+    texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
   const publicadoresFiltrados = publicadoresVisibles.filter(p => {
     const matchNombre = !filtro || 
-      `${p.nombre} ${p.apellido}`.toLowerCase().includes(filtro.toLowerCase())
+      normalizar(`${p.nombre} ${p.apellido}`).includes(normalizar(filtro))
     const matchGrupo = grupoFiltro === 'TODOS' || p.grupo === grupoFiltro
     return matchNombre && matchGrupo
   })
@@ -87,63 +90,65 @@ export default function Publicadores({ publicadores, onReload }) {
             </p>
           </div>
           
-          {/* Botones de vista */}
-          <div className="flex gap-2">
+                {/* Botones de vista */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setVistaActual('activos')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 ${
+              vistaActual === 'activos'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Users size={16} />
+            Activos
+          </button>
+          <button
+            onClick={() => setVistaActual('mudados')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 ${
+              vistaActual === 'mudados'
+                ? 'bg-orange-600 text-white'
+                : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+            }`}
+          >
+            <Home size={16} />
+            Mudados/Inactivos
+          </button>
+        </div>
+
+        {/* Botones de acción (solo en vista activos) */}
+        {vistaActual === 'activos' && (
+          <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setVistaActual('activos')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                vistaActual === 'activos'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+              onClick={() => setShowS21Modal(true)}
             >
-              Activos
+              <FileText size={16} />
+              Generar S-21
             </button>
             <button
-              onClick={() => setVistaActual('mudados')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 ${
-                vistaActual === 'mudados'
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
-              }`}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+              onClick={() => exportarListaGrupos(publicadores)}
             >
-              Mudados/Inactivos
+              <FileText size={16} />
+              Lista por grupos
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+              onClick={() => setShowImportModal(true)}
+            >
+              <Upload size={16} />
+              Importar Excel
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800"
+              onClick={handleNuevo}
+            >
+              <Plus size={16} />
+              Nuevo
             </button>
           </div>
-
-          {/* Botones de acción (solo en vista activos) */}
-          {vistaActual === 'activos' && (
-            <div className="flex gap-2">
-              <button 
-                className="btn-secondary inline-flex items-center gap-2"
-                onClick={() => setShowS21Modal(true)}
-              >
-                <FileText size={16} />
-                Generar S-21
-              </button>
-             <button
-  className="btn-secondary inline-flex items-center gap-2"
-  onClick={() => exportarListaGrupos(publicadores)}
->
-  <FileText size={16} />
-  Lista por grupos
-</button>
-              <button 
-                className="btn-secondary"
-                onClick={() => setShowImportModal(true)}
-              >
-                <Upload size={16} />
-                Importar Excel
-              </button>
-              <button 
-                className="btn-primary"
-                onClick={handleNuevo}
-              >
-                <Plus size={16} />
-                Nuevo
-              </button>
-            </div>
-          )}
+        )}
         </div>
 
         {/* Filtros - Solo en vista activos */}

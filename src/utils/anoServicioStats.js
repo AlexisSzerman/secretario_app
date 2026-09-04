@@ -46,6 +46,8 @@ export const obtenerDatosAnoServicio = async (publicadores) => {
         .reduce((sum, i) => sum + (i.horas || 0), 0)
 
       const cantidadAux = informes.filter(i => i.precursor_auxiliar).length
+      const cursosTotales = informes.reduce((sum, i) => sum + (i.cursos || 0), 0)
+      const noParticiparon = informes.filter(i => !i.participo).length
 
       // Usamos tipo_servicio_mes (guardado en cada informe) en vez del
       // tipo_servicio actual, para reflejar correctamente la historia
@@ -60,9 +62,11 @@ export const obtenerDatosAnoServicio = async (publicadores) => {
         activos,
         asistenciaFinSemana: asistencia?.asistencia_fin_semana ?? null,
         asistenciaEntreSemana: asistencia?.asistencia_entre_semana ?? null,
-        cantidadAux,   // ← NUEVO
+        cantidadAux,   
         horasAux,
-        horasReg
+        horasReg,
+        cursosTotales,
+        noParticiparon 
       }
     })
   )

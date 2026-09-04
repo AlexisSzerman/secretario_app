@@ -223,8 +223,7 @@ export default function VistaMudados({ publicadores, onReload }) {
       {/* Info footer */}
       <div className="card p-4 bg-blue-50 border-blue-200">
         <p className="text-sm text-blue-800">
-          💡 <strong>Tip:</strong> Al reactivar a un mudado, vuelve a la lista de activos y deberá informar 
-          a partir del mes siguiente. Al reactivar a un inactivo, su tipo de servicio vuelve a "Publicador".
+          💡 <strong>Tip:</strong> Al reactivar a un inactivo o mudado, volverá a la lista de activos y deberá informar a partir del mes siguiente. Si se trata de un inactivo, su tipo de servicio volverá a “Publicador”.
         </p>
       </div>
     </div>

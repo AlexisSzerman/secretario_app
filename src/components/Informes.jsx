@@ -53,33 +53,33 @@ export default function Informes({ publicadores, onReload }) {
     })
   }
 
-const publicadoresActivos = publicadores.filter(p => {
+  const publicadoresActivos = publicadores.filter(p => {
     // Excluir inactivos
     if (p.tipo_servicio === 'Inactivo') return false
-    
-    // Excluir mudados (si la fecha de mudanza es anterior al mes actual)
-    if (p.fecha_mudanza) {
-      const fechaSalida = new Date(p.fecha_mudanza)
-      const fechaMesActual = new Date(mesActual.ano, mesActual.mes - 1, 1)
-      if (fechaSalida < fechaMesActual) return false
-    }
+
+    // Excluir mudados, sin importar el mes (igual que Publicadores.jsx)
+    if (p.fecha_mudanza) return false
 
     // Excluir a quienes todavía no correspondía que informaran este mes
-    // (recién llegados a la congregación, o con fecha de inicio de informe posterior)
     const fechaBase = p.informar_desde || p.en_congregacion_desde || p.activo_desde
     if (fechaBase) {
-      const fechaMesActual = new Date(mesActual.ano, mesActual.mes - 1, 1)
-      const fechaInicio = new Date(fechaBase)
-      if (fechaMesActual < fechaInicio) return false
+      const [yb, mb] = fechaBase.split('-').map(Number)
+      const aunNoLlegaba = yb > mesActual.ano || (yb === mesActual.ano && mb > mesActual.mes)
+      if (aunNoLlegaba) return false
     }
-    
+
     return true
   })
-  
+
+  // La barra de progreso solo debe contar informes de publicadores
+  // que efectivamente están en el conjunto de "activos" de este mes
+  const idsActivos = new Set(publicadoresActivos.map(p => p.id))
+  const informesDeActivos = informes.filter(inf => idsActivos.has(inf.publicador_id))
+
   const esDisponible = esMesVencido(mesActual.mes, mesActual.ano)
   const esMesFuturo = !esDisponible
   const porcentaje = publicadoresActivos.length > 0
-    ? Math.round((informes.length / publicadoresActivos.length) * 100)
+    ? Math.round((informesDeActivos.length / publicadoresActivos.length) * 100)
     : 0
 
   if (publicadores.length === 0 || publicadoresActivos.length === 0) {
@@ -183,7 +183,9 @@ const publicadoresActivos = publicadores.filter(p => {
               <Calendar size={16} />
               Año Servicio
             </button>
-            {/* NUEVO: Vista Informe S-1 */}
+ 
+            {/* Vista Informe S-1 */}
+ 
             <button
               onClick={() => setVistaActual('informes1')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 ${
@@ -199,12 +201,24 @@ const publicadoresActivos = publicadores.filter(p => {
         </div>
 
         {/* Barra de progreso */}
+
         <div className="mt-4">
-          <div className="w-full bg-slate-200 rounded-full h-3">
+          <div className="w-full bg-slate-200 rounded-full h-5 relative overflow-hidden">
             <div 
-              className="bg-slate-900 h-3 rounded-full transition-all duration-500"
+              className="bg-slate-900 h-5 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
               style={{ width: `${porcentaje}%` }}
-            ></div>
+            >
+              {porcentaje >= 15 && (
+                <span className="text-[10px] font-semibold text-white">
+                  {porcentaje}%
+                </span>
+              )}
+            </div>
+          </div>
+                    <div className="flex justify-between items-center mb-1 mt-1">
+            <span className="text-xs text-slate-600">
+              {informesDeActivos.length} de {publicadoresActivos.length} informaron
+            </span>
           </div>
         </div>
 
