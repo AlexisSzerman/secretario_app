@@ -35,6 +35,16 @@ const anoActual = getAnoServicioActual()
     p.tipo_servicio !== 'Inactivo' && !p.fecha_mudanza
   ).sort((a, b) => `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`))
 
+  // Formatea una fecha "YYYY-MM-DD" (como vienen de Supabase, columna date)
+  // a dd/mm/aaaa SIN pasar por new Date(), para evitar el corrimiento de
+  // un día hacia atrás que provoca la interpretación UTC + zona horaria
+  // Argentina (UTC-3) al usar toLocaleDateString.
+  const formatearFechaSinTZ = (fechaStr) => {
+    if (!fechaStr) return ''
+    const [ano, mes, dia] = fechaStr.split('-')
+    return `${dia}/${mes}/${ano}`
+  }
+
   // Carga la imagen de template UNA sola vez, y la convierte a JPEG
   // comprimido a una resolución adecuada para impresión (150dpi en A4).
   // El template original es un PNG sin pérdida a resolución completa, lo
@@ -90,8 +100,7 @@ const anoActual = getAnoServicioActual()
 
     // Fecha nacimiento
     if (publicador.fecha_nacimiento) {
-      const fecha = new Date(publicador.fecha_nacimiento)
-      doc.text(fecha.toLocaleDateString('es-AR'), 50, 33)
+      doc.text(formatearFechaSinTZ(publicador.fecha_nacimiento), 50, 33)
     }
 
     // Sexo
@@ -104,8 +113,7 @@ const anoActual = getAnoServicioActual()
 
     // Bautismo
     if (publicador.fecha_bautismo) {
-      const fecha = new Date(publicador.fecha_bautismo)
-      doc.text(fecha.toLocaleDateString('es-AR'), 45, 38.5)
+      doc.text(formatearFechaSinTZ(publicador.fecha_bautismo), 45, 38.5)
     }
 
     // Esperanza
